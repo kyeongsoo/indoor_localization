@@ -7,8 +7,9 @@ For more details, please
 visit
 [project home page](http://kyeongsoo.github.io/research/projects/indoor_localization/index.html).
 
-* 20170812: Results with 1-hidden-layer classifier (nh: number of hidden layer
-  nodes, dr: dropout rate)
+* 20170812:
+  [Results with 1-hidden-layer classifier](indoor_localization-1.ipynb) (nh:
+  number of hidden layer nodes, dr: dropout rate)
   * nh=16 & dr=0.00: loss=1.234082e+00, accuracy=7.533753e-01	
   * nh=16 & dr=0.20: loss=1.492540e+00, accuracy=7.353735e-01
   * nh=16 & dr=0.50: loss=1.369105e+00, accuracy=7.488749e-01
