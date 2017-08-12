@@ -40,8 +40,8 @@ encoder_activation = 'tanh'
 classifier_activation = 'relu'
 
 # the following data use "-110" to indicate lack of AP.
-path_train = "~/Documents/References/Localization/Fingerprinting/Data Sets/UJIndoorLoc/trainingData2.csv"
-path_validation = "~/Documents/References/Localization/Fingerprinting/Data Sets/UJIndoorLoc/validationData2.csv"
+path_train = "~/UJIndoorLoc/trainingData2.csv"
+path_validation = "~/UJIndoorLoc/validationData2.csv"
 
 train_df = pd.read_csv(path_train,header = 0) # pass header=0 to be able to replace existing names 
 train_df = train_df[:19930]
