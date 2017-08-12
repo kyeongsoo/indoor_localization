@@ -1,4 +1,4 @@
-# indoor_localization
+# Indoor Localization
 
 This is a repository for research on indoor localization based on wireless
 fingerprinting techniques.
