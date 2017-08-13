@@ -1,5 +1,6 @@
 #+TITLE: Indoor Localization
-#+DATE: Time-stamp: <2017-08-13 14:16:16 Kyeong Soo (Joseph) Kim>
+#+DATE: Time-stamp: <2017-08-13 14:24:36 Kyeong Soo (Joseph) Kim>
+#+OPTIONS: toc:t
 
 This is a repository for research on indoor localization based on wireless
 fingerprinting techniques. For more details, please visit [[http://kyeongsoo.github.io/research/projects/indoor_localization/index.html][XJTLU SURF project home page]].
