@@ -8,7 +8,7 @@ This is a repository for research on indoor localization based on wireless finge
 
 # 2017-08-13
 
--   We finally obtain [more than 90% accuracies](./results/indoor_localization_deep_learning.md) from [this version](./python/indoor_localization_deep_learning.py), which are comparable to the results of [the key paper](https://arxiv.org/abs/1611.02049v2); refer to the [multi-class clarification example](https://keras.io/getting-started/sequential-model-guide/#compilation) for classifier parameter settings.
+-   We finally obtain [more than 90% accuracies](./results/indoor_localization_deep_learning.org) from [this version](./python/indoor_localization_deep_learning.py), which are comparable to the results of [the key paper](https://arxiv.org/abs/1611.02049v2); refer to the [multi-class clarification example](https://keras.io/getting-started/sequential-model-guide/#compilation) for classifier parameter settings.
 -   We [replace the activation functions of the hidden-layer from 'tanh' to 'relu'](./python/indoor_localization-2.ipynb) per the second answer to [this qustion](https://stats.stackexchange.com/questions/218542/which-activation-function-for-output-layer). The results are [here](./results/indoor_localization-2_20170813.csv). Compared to the case with 'tanh', however, the results seem to not improve (a bit inline with the gut-feeling suggestions from [this](https://datascience.stackexchange.com/questions/10048/what-is-the-best-keras-model-for-multi-class-classification)).
 
 
