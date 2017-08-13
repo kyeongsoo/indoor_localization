@@ -1,5 +1,5 @@
 #+TITLE: Indoor Localization
-#+DATE: Time-stamp: <2017-08-13 23:12:42 Kyeong Soo (Joseph) Kim>
+#+DATE: Time-stamp: <2017-08-14 00:05:38 Kyeong Soo (Joseph) Kim>
 #+OPTIONS: toc:t
 
 This is a repository for research on indoor localization based on wireless
@@ -15,6 +15,7 @@ fingerprinting techniques. For more details, please visit [[http://kyeongsoo.git
   the gut-feeling suggestions from [[https://datascience.stackexchange.com/questions/10048/what-is-the-best-keras-model-for-multi-class-classification][this]]).
 
 * 2017-08-12
-We first try [[./python/indoor_localization-1.ipynb][a feed-forward classifier with just one hidden layer]] per the
-comments from [[https://stats.stackexchange.com/questions/181/how-to-choose-the-number-of-hidden-layers-and-nodes-in-a-feedforward-neural-netw][this]]. The results are [[./results/indoor_localization-1_20170812.csv][here]] (* /nh/: number of hidden layer nodes,
-/dr/: [[https://en.wikipedia.org/wiki/Dropout_(neural_networks)][dropout]] rate, /loss/: [[http://deeplearning.net/software/theano/library/tensor/nnet/nnet.html#theano.tensor.nnet.nnet.categorical_crossentropy][categorical cross-entropy]], /acc/: accuracy *).
+- We first try [[./python/indoor_localization-1.ipynb][a feed-forward classifier with just one hidden layer]] per the
+  comments from [[https://stats.stackexchange.com/questions/181/how-to-choose-the-number-of-hidden-layers-and-nodes-in-a-feedforward-neural-netw][this]]. The results are [[./results/indoor_localization-1_20170812.csv][here]] (* /nh/: number of hidden layer
+  nodes, /dr/: [[https://en.wikipedia.org/wiki/Dropout_(neural_networks)][dropout]] rate, /loss/: [[http://deeplearning.net/software/theano/library/tensor/nnet/nnet.html#theano.tensor.nnet.nnet.categorical_crossentropy][categorical cross-entropy]], /acc/: accuracy
+  *).
