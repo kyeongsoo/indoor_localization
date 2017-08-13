@@ -1,0 +1,16 @@
+* System parameters
+  - Ratio of training data to overall data: 0.900000
+  - Encoder activation: relu
+  - Encoder bias: False
+  - Encoder loss: mse
+  - Classifier activation: tanh
+  - Classifier bias: False
+  - Classifier optimizer: adam
+  - Classifier loss: categorical_crossentropy
+* Performance
+  - Dropout rate = 0.00: Loss = 4.816270e-01, Accuracy = 9.270927e-01
+  - Dropout rate = 0.10: Loss = 5.107245e-01, Accuracy = 9.234923e-01
+  - Dropout rate = 0.20: Loss = 4.360389e-01, Accuracy = 9.261926e-01
+  - Dropout rate = 0.30: Loss = 9.138410e-01, Accuracy = 5.796580e-01
+  - Dropout rate = 0.40: Loss = 1.208811e+00, Accuracy = 3.834383e-01
+  - Dropout rate = 0.50: Loss = 1.707510e+00, Accuracy = 2.763276e-01

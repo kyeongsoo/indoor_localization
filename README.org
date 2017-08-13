@@ -1,16 +1,18 @@
 #+TITLE: Indoor Localization
-#+DATE: Time-stamp: <2017-08-13 14:24:36 Kyeong Soo (Joseph) Kim>
+#+DATE: Time-stamp: <2017-08-13 23:12:42 Kyeong Soo (Joseph) Kim>
 #+OPTIONS: toc:t
 
 This is a repository for research on indoor localization based on wireless
 fingerprinting techniques. For more details, please visit [[http://kyeongsoo.github.io/research/projects/indoor_localization/index.html][XJTLU SURF project home page]].
 
 * 2017-08-13
-We [[./python/indoor_localization-2.ipynb][replace the activation functions of the hidden-layer from 'tanh' to 'relu']]
-per the second answer to [[https://stats.stackexchange.com/questions/218542/which-activation-function-for-output-layer][this qustion]]. The results are [[./results/indoor_localization-2_20170813.csv][here]] (nh: number of
-hidden layer nodes, dr: dropout rate, acc: accuracy). Compared to the case with
-'tanh', however, the results seem to not improve (a bit inline with the
-gut-feeling suggestions from [[https://datascience.stackexchange.com/questions/10048/what-is-the-best-keras-model-for-multi-class-classification][this]]).
+- We finally obtain [[./results/indoor_localization_deep_learning.org][more than 90% accuracies]] from [[./python/indoor_localization_deep_learning.py][this version]], which are
+  comparable to the results of [[https://arxiv.org/abs/1611.02049v2][the key paper]]; refer to the [[https://keras.io/getting-started/sequential-model-guide/#compilation][multi-class
+  clarification example]] for classifier parameter settings.
+- We [[./python/indoor_localization-2.ipynb][replace the activation functions of the hidden-layer from 'tanh' to 'relu']]
+  per the second answer to [[https://stats.stackexchange.com/questions/218542/which-activation-function-for-output-layer][this qustion]]. The results are [[./results/indoor_localization-2_20170813.csv][here]]. Compared to the
+  case with 'tanh', however, the results seem to not improve (a bit inline with
+  the gut-feeling suggestions from [[https://datascience.stackexchange.com/questions/10048/what-is-the-best-keras-model-for-multi-class-classification][this]]).
 
 * 2017-08-12
 We first try [[./python/indoor_localization-1.ipynb][a feed-forward classifier with just one hidden layer]] per the

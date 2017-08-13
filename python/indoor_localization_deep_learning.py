@@ -14,16 +14,20 @@
 #           recognition with WiFi fingerprints using deep learning</a>".
 #
 
-import os.path
-import pandas as pd
-import tensorflow as tf
+
+### import modules
+import datetime
+import os
 import numpy as np
-from sklearn.preprocessing import scale
-from keras.models import Sequential, load_model
+import pandas as pd
+os.environ['TF_CPP_MIN_LOG_LEVEL']='2'  # supress warning messages
+import tensorflow as tf
 from keras.layers import Dense, Dropout
+from keras.models import Sequential, load_model
+from sklearn.preprocessing import scale
 from timeit import default_timer as timer
 
-# set paramter values
+### set paramter values
 # train_val_split = 0.7
 training_ratio = 0.9            # ratio of training data to overall data
 input_dim = 520
@@ -31,17 +35,28 @@ output_dim = 13                 # number of labels
 epochs = 20
 batch_size = 10
 verbose = 1                     # 0 for turning off logging
-# drs = np.arange(11)*0.05        # range of dropout rate (0.0, 0.05,...,0.5)
-drs = np.array([0.2, 0.5]) # range of dropout rate (0.0, 0.05,...,0.5)
+# dropout_rates = [0.5]           # for test
+dropout_rates = np.arange(6)*0.1  # 0.0,0.1,...,0.5
 losses = []
 accuracies = []
-encoder_model_saved = './backups/encoder_model_saved.hdf5'
-encoder_activation = 'tanh'
-classifier_activation = 'relu'
+encoder_model_saved = '../results/encoder_model_saved.hdf5'
+# encoder_activation = 'tanh'
+encoder_activation = 'relu'
+encoder_bias = False
+encoder_optimizer = 'adam'
+encoder_loss = 'mse'
+# classifier_activation = 'relu'
+classifier_activation = 'tanh'
+classifier_bias = False
+classifier_optimizer = 'adam'
+# classifier_optimizer = 'rmsprop'
+classifier_loss = 'categorical_crossentropy'
 
+### input and output files
 # the following data use "-110" to indicate lack of AP.
-path_train = "~/UJIndoorLoc/trainingData2.csv"
-path_validation = "~/UJIndoorLoc/validationData2.csv"
+path_train = "../data/UJIndoorLoc/trainingData2.csv"
+path_validation = "../data/UJIndoorLoc/validationData2.csv"
+path_results = "../results/" + os.path.splitext(os.path.basename(__file__))[0]
 
 train_df = pd.read_csv(path_train,header = 0) # pass header=0 to be able to replace existing names 
 train_df = train_df[:19930]
@@ -93,13 +108,13 @@ if os.path.isfile(encoder_model_saved):
 else:
     # create a model based on stacked autoencoder (SAE)
     model = Sequential()
-    model.add(Dense(256, input_dim=input_dim, activation=encoder_activation, use_bias=True))
-    model.add(Dense(128, activation=encoder_activation, use_bias=True))
-    model.add(Dense(64, activation=encoder_activation, use_bias=True))
-    model.add(Dense(128, activation=encoder_activation, use_bias=True))
-    model.add(Dense(256, activation=encoder_activation, use_bias=True))
-    model.add(Dense(input_dim, activation=encoder_activation, use_bias=True))
-    model.compile(optimizer='adam', loss='mse')
+    model.add(Dense(256, input_dim=input_dim, activation=encoder_activation, use_bias=encoder_bias))
+    model.add(Dense(128, activation=encoder_activation, use_bias=encoder_bias))
+    model.add(Dense(64, activation=encoder_activation, use_bias=encoder_bias))
+    model.add(Dense(128, activation=encoder_activation, use_bias=encoder_bias))
+    model.add(Dense(256, activation=encoder_activation, use_bias=encoder_bias))
+    model.add(Dense(input_dim, activation=encoder_activation, use_bias=encoder_bias))
+    model.compile(optimizer=encoder_optimizer, loss=encoder_loss)
 
     # train the model
     model.fit(train_X, train_X, batch_size=batch_size, epochs=epochs, verbose=verbose)
@@ -109,24 +124,23 @@ else:
     for i in range(num_to_remove):
         model.pop()
 
-    # set all layers (i.e., SAE encoder) to non-trainable (weights will not be updated)
-    for layer in model.layers[:]:
-        layer.trainable = False
+    # # set all layers (i.e., SAE encoder) to non-trainable (weights will not be updated)
+    # for layer in model.layers[:]:
+    #     layer.trainable = False
         
     # save the model for later use
     model.save(encoder_model_saved)
 
 ### build and evaluate a complete model with the trained SAE encoder and a new classifier
 print("\nPart 2: buidling a complete model ...")
-for dr in drs:
+for dr in dropout_rates:
     # append a classifier to the model
-    model.add(Dense(128, activation=classifier_activation, use_bias=True))
+    model.add(Dense(128, activation=classifier_activation, use_bias=classifier_bias))
     model.add(Dropout(dr))
-    model.add(Dense(128, activation=classifier_activation, use_bias=True))
+    model.add(Dense(128, activation=classifier_activation, use_bias=classifier_bias))
     model.add(Dropout(dr))
-    model.add(Dense(output_dim, activation='softmax', use_bias=True))
-    model.compile(optimizer='adam', loss='categorical_crossentropy',metrics=['accuracy'])
-    # model.compile(optimizer='adam', loss='mse',metrics=['accuracy'])
+    model.add(Dense(output_dim, activation='softmax', use_bias=classifier_bias))
+    model.compile(optimizer=classifier_optimizer, loss=classifier_loss, metrics=['accuracy'])
 
     # train the model
     startTime = timer()
@@ -140,9 +154,19 @@ for dr in drs:
     accuracies.append(acc)
 
 ### print out final results
-print("\nBuidling and evaluating a complete model completed!")
-print("- Ratio of training data to overall data: %f" % training_ratio)
-print("- Encoder activation: %s" % encoder_activation)
-print("- Classifier activation: %s" % classifier_activation)
-for i in range(len(drs)):
-    print("- Dropout rate = %f: Loss = %e, Accuracy = %e" % (drs[i], losses[i], accuracies[i]))
+now = datetime.datetime.now()
+path_results += "_" + now.strftime("%Y%m%d-%H%M%S") + ".org"
+f = open(path_results, 'w')
+f.write("* System parameters\n")
+f.write("  - Ratio of training data to overall data: %f\n" % training_ratio)
+f.write("  - Encoder activation: %s\n" % encoder_activation)
+f.write("  - Encoder bias: %s\n" % encoder_bias)
+f.write("  - Encoder loss: %s\n" % encoder_loss)
+f.write("  - Classifier activation: %s\n" % classifier_activation)
+f.write("  - Classifier bias: %s\n" % classifier_bias)
+f.write("  - Classifier optimizer: %s\n" % classifier_optimizer)
+f.write("  - Classifier loss: %s\n" % classifier_loss)
+f.write("* Performance\n")
+for i in range(len(dropout_rates)):
+    f.write("  - Dropout rate = %.2f: Loss = %e, Accuracy = %e\n" % (dropout_rates[i], losses[i], accuracies[i]))
+f.close()
