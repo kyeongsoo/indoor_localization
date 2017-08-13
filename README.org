@@ -1,9 +1,8 @@
 #+TITLE: Indoor Localization
-#+DATE: Time-stamp: <2017-08-13 14:10:59 Kyeong Soo (Joseph) Kim>
+#+DATE: Time-stamp: <2017-08-13 14:16:16 Kyeong Soo (Joseph) Kim>
 
 This is a repository for research on indoor localization based on wireless
-fingerprinting techniques. For more details, please visit [[http://kyeongsoo.github.io/research/projects/indoor_localization/index.html][XJTLU SURF project
-home page]].
+fingerprinting techniques. For more details, please visit [[http://kyeongsoo.github.io/research/projects/indoor_localization/index.html][XJTLU SURF project home page]].
 
 * 2017-08-13
 We [[./python/indoor_localization-2.ipynb][replace the activation functions of the hidden-layer from 'tanh' to 'relu']]

@@ -2,17 +2,16 @@
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#orgdd6f52d">1. 2017-08-13</a></li>
-<li><a href="#orgb8ae7a9">2. 2017-08-12</a></li>
+<li><a href="#orgb760917">1. 2017-08-13</a></li>
+<li><a href="#org7feed11">2. 2017-08-12</a></li>
 </ul>
 </div>
 </div>
 This is a repository for research on indoor localization based on wireless
-fingerprinting techniques. For more details, please visit [XJTLU SURF project
-home page](http://kyeongsoo.github.io/research/projects/indoor_localization/index.html).
+fingerprinting techniques. For more details, please visit [XJTLU SURF project home page](http://kyeongsoo.github.io/research/projects/indoor_localization/index.html).
 
 
-<a id="orgdd6f52d"></a>
+<a id="orgb760917"></a>
 
 # 2017-08-13
 
@@ -23,7 +22,7 @@ hidden layer nodes, dr: dropout rate, acc: accuracy). Compared to the case with
 gut-feeling suggestions from [this](https://datascience.stackexchange.com/questions/10048/what-is-the-best-keras-model-for-multi-class-classification)).
 
 
-<a id="orgb8ae7a9"></a>
+<a id="org7feed11"></a>
 
 # 2017-08-12
 
