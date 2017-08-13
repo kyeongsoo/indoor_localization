@@ -1,0 +1,16 @@
+#+TITLE: Indoor Localization
+#+DATE: Time-stamp: <2017-08-13 13:13:46 Kyeong Soo (Joseph) Kim>
+
+This is a repository for research on indoor localization based on wireless
+fingerprinting techniques. For more details, please visit [[http://kyeongsoo.github.io/research/projects/indoor_localization/index.html][XJTLU SURF project
+home page]].
+
+* 2017-08-12: We first
+  try [[python/indoor_localization-1.ipynb][a feed-forward classifier with just one hidden layer]] per the comments from
+  [[https://stats.stackexchange.com/questions/181/how-to-choose-the-number-of-hidden-layers-and-nodes-in-a-feedforward-neural-netw][this]] and [[https://stats.stackexchange.com/questions/181/how-to-choose-the-number-of-hidden-layers-and-nodes-in-a-feedforward-neural-netw][this]]. The results are [[results/indoor_localization-1_20170812.org][here]] (nh: number of hidden layer nodes, dr:
+  dropout rate, acc: accuracy).
+
+* 2017-08-13: We [[python/indoor_localization-2.ipynb][replace the activation functions of the hidden-layer from 'tanh' to 'relu']]
+  per the second answer to [[https://stats.stackexchange.com/questions/218542/which-activation-function-for-output-layer][this qustion]]. The results are [[results/indoor_localization-2_20170813.org][here]] (nh: number of
+  hidden layer nodes, dr: dropout rate, acc: accuracy). Compared to the case
+  with 'tanh', however, the results seem to not improve.
