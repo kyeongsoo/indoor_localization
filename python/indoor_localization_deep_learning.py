@@ -61,7 +61,7 @@ path_validation = '../data/UJIndoorLoc/validationData2.csv' # ditto
 #------------------------------------------------------------------------
 path_base = '../results/' + os.path.splitext(os.path.basename(__file__))[0]
 path_out =  path_base + '_out'
-path_sae_model = path_base + '_sae_model_path.hdf5'
+path_sae_model = path_base + '_sae_model.hdf5'
 
 ### initialize variables
 losses = []
