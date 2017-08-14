@@ -1,5 +1,5 @@
 #+TITLE: Indoor Localization
-#+DATE: Time-stamp: <2017-08-14 18:52:28 Kyeong Soo (Joseph) Kim>
+#+DATE: Time-stamp: <2017-08-14 20:24:28 Kyeong Soo (Joseph) Kim>
 #+OPTIONS: toc:t
 
 This is a repository for research on indoor localization based on wireless
@@ -11,10 +11,11 @@ fingerprinting techniques. For more details, please visit [[http://kyeongsoo.git
   with different configurations, we could obtain more than 90% accuracies with
   the stacked-autoencoder (SAE) having 64-4-64 hidden layers (i.e., just 4
   dimension) and the classifier having just one 128-node hidden layer (the
-  results are [[./results/indoor_localization_deep_learning_out_20170814-184009.org][here]]). This implies that just a small number of RSSs from access
-  points (APs) deployed in a building/floor can give enough information for the
-  building/floor classification, which would be quite different from the
-  localization on the same floor where there are RSSs from possibly many APs.
+  results are [[./results/indoor_localization_deep_learning_out_20170814-184009.org][here]]). This implies that a small number of RSSs from access points
+  (APs) deployed in a building/floor can give enough information for the
+  building/floor classification; the localization on the same floor, by the way,
+  would be quite different, where RSSs from possibly many APs have a significant
+  impact on the localization performance.
 
 * 2017-08-13
 - We finally obtained [[./results/indoor_localization_deep_learning.org][more than 90% accuracies]] from [[./python/indoor_localization_deep_learning.py][this version]], which are
