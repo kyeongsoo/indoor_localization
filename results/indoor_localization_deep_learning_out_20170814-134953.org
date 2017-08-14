@@ -1,0 +1,13 @@
+* System parameters
+  - Ratio of training data to overall data: 0.900000
+  - SAE hidden layers: 64-32-16-32-64
+  - SAE activation: relu
+  - SAE bias: False
+  - SAE optimizer: adam
+  - SAE loss: mse
+  - Classifier activation: tanh
+  - Classifier bias: False
+  - Classifier optimizer: adam
+  - Classifier loss: categorical_crossentropy
+* Performance
+  - Dropout rate = 0.50: Loss = 1.049979e+00, Accuracy = 8.946895e-01

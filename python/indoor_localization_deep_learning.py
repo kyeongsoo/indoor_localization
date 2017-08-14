@@ -14,159 +14,231 @@
 #           recognition with WiFi fingerprints using deep learning</a>".
 #
 
-
-### import modules
+### import modules (except keras and its backend)
+import argparse
 import datetime
 import os
 import numpy as np
 import pandas as pd
-os.environ['TF_CPP_MIN_LOG_LEVEL']='2'  # supress warning messages
-import tensorflow as tf
-from keras.layers import Dense, Dropout
-from keras.models import Sequential, load_model
+import sys
 from sklearn.preprocessing import scale
 from timeit import default_timer as timer
 
 ### set paramter values
-# train_val_split = 0.7
+#------------------------------------------------------------------------
+# general
+#------------------------------------------------------------------------
 training_ratio = 0.9            # ratio of training data to overall data
 input_dim = 520
 output_dim = 13                 # number of labels
-epochs = 20
-batch_size = 10
 verbose = 1                     # 0 for turning off logging
-# dropout_rates = [0.5]           # for test
-dropout_rates = np.arange(6)*0.1  # 0.0,0.1,...,0.5
-losses = []
-accuracies = []
-encoder_model_saved = '../results/encoder_model_saved.hdf5'
-# encoder_activation = 'tanh'
-encoder_activation = 'relu'
-encoder_bias = False
-encoder_optimizer = 'adam'
-encoder_loss = 'mse'
+#------------------------------------------------------------------------
+# stacked auto encoder (sae)
+#------------------------------------------------------------------------
+# sae_activation = 'tanh'
+sae_activation = 'relu'
+sae_bias = False
+sae_optimizer = 'adam'
+sae_loss = 'mse'
+#------------------------------------------------------------------------
+# classifier
+#------------------------------------------------------------------------
 # classifier_activation = 'relu'
 classifier_activation = 'tanh'
 classifier_bias = False
 classifier_optimizer = 'adam'
 # classifier_optimizer = 'rmsprop'
 classifier_loss = 'categorical_crossentropy'
+dropout_rates = [0.5]           # for test
+# dropout_rates = np.arange(6)*0.1  # 0.0,0.1,...,0.5
+#------------------------------------------------------------------------
+# input files
+#------------------------------------------------------------------------
+path_train = '../data/UJIndoorLoc/trainingData2.csv' # '-110' for the lack of AP.
+path_validation = '../data/UJIndoorLoc/validationData2.csv' # ditto
+#------------------------------------------------------------------------
+# output files
+#------------------------------------------------------------------------
+path_base = '../results/' + os.path.splitext(os.path.basename(__file__))[0]
+path_out =  path_base + '_out'
+path_sae_model = path_base + '_sae_model_path.hdf5'
 
-### input and output files
-# the following data use "-110" to indicate lack of AP.
-path_train = "../data/UJIndoorLoc/trainingData2.csv"
-path_validation = "../data/UJIndoorLoc/validationData2.csv"
-path_results = "../results/" + os.path.splitext(os.path.basename(__file__))[0]
+### initialize variables
+losses = []
+accuracies = []
 
-train_df = pd.read_csv(path_train,header = 0) # pass header=0 to be able to replace existing names 
-train_df = train_df[:19930]
-train_AP_strengths = train_df.iloc[:,:520] #select first 520 columns
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-G",
+        "--gpu_id",
+        help="ID of GPU device to run this script; default is 0; set it to a negative number for CPU (i.e., no GPU)",
+        default=0,
+        type=int)
+    parser.add_argument(
+        "-E",
+        "--epochs",
+        help="number of epochs; default is 20",
+        default=20,
+        type=int)
+    parser.add_argument(
+        "-B",
+        "--batch_size",
+        help="batch size; default is 10",
+        default=10,
+        type=int)
+    parser.add_argument(
+        "-S",
+        "--sae_hidden_layers",
+        help=
+        "numbers of units in SAE hidden layers in string; default is '256-128-64-128-256'",
+        default='256-128-64-128-256',
+        type=str)
+    parser.add_argument(
+        "-C",
+        "--classifier_hidden_layers",
+        help=
+        "numbers of units in classifier hidden layers in string; default is '128-128'",
+        default='128-128',
+        type=str)
+    args = parser.parse_args()
 
-# scale transforms data to center to the mean and component wise scale to unit variance
-train_AP_features = scale(np.asarray(train_AP_strengths).astype(float), axis=1) # convert integer to float and scale jointly (axis=1)
+    # set variables using command-line arguments
+    gpu_id = args.gpu_id
+    epochs = args.epochs
+    batch_size = args.batch_size
+    sae_hidden_layers = [int(i) for i in (args.sae_hidden_layers).split('-')]
+    classifier_hidden_layers = [int(i) for i in (args.classifier_hidden_layers).split('-')]
 
-# the following two objects are actually pandas.core.series.Series objects
-building_ids_str = train_df["BUILDINGID"].map(str) #convert all the building ids to strings
-building_floors_str = train_df["FLOOR"].map(str) #convert all the building floors to strings
+    #------------------------------------------------------------------------
+    # import keras and its backend (e.g., tensorflow)
+    #------------------------------------------------------------------------
+    if gpu_id >= 0:
+        # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
+    # os.environ['TF_CPP_MIN_LOG_LEVEL']='2'  # supress warning messages
+    import tensorflow as tf
+    from keras.layers import Dense, Dropout
+    from keras.models import Sequential, load_model
+    
+    train_df = pd.read_csv(path_train,header = 0) # pass header=0 to be able to replace existing names 
+    train_df = train_df[:19930]
+    train_AP_strengths = train_df.iloc[:,:520] #select first 520 columns
 
-res = building_ids_str + building_floors_str #element wise concatenation of BUILDINGID+FLOOR
-train_labels = np.asarray(building_ids_str + building_floors_str)
+    # scale transforms data to center to the mean and component wise scale to unit variance
+    train_AP_features = scale(np.asarray(train_AP_strengths).astype(float), axis=1) # convert integer to float and scale jointly (axis=1)
 
-# convert labels to categorical variables, dummy_labels has type 'pandas.core.frame.DataFrame'
-dummy_labels = pd.get_dummies(train_labels)
+    # the following two objects are actually pandas.core.series.Series objects
+    building_ids_str = train_df['BUILDINGID'].map(str) #convert all the building ids to strings
+    building_floors_str = train_df['FLOOR'].map(str) #convert all the building floors to strings
 
-"""one hot encode the dummy_labels.
-this is done because dummy_labels is a dataframe with the labels (BUILDINGID+FLOOR) 
-as the column names
-"""
-train_labels = np.asarray(dummy_labels) #labels is an array of shape 19937 x 13. (there are 13 types of labels)
+    res = building_ids_str + building_floors_str #element wise concatenation of BUILDINGID+FLOOR
+    train_labels = np.asarray(building_ids_str + building_floors_str)
 
-# generate len(train_AP_features) of floats in between 0 and 1
-train_val_split = np.random.rand(len(train_AP_features))
-# convert train_val_split to an array of booleans: if elem < 0.7 = true, else: false
-# train_val_split = train_val_split < 0.70 #should contain ~70% percent true
-train_val_split = train_val_split < training_ratio #should contain ~90% percent true
+    # convert labels to categorical variables, dummy_labels has type 'pandas.core.frame.DataFrame'
+    dummy_labels = pd.get_dummies(train_labels)
 
-# We aren't given a formal testing set, so we will treat the given validation
-# set as the testing set: We will then split our given training set into
-# training + validation
-train_X = train_AP_features[train_val_split]
-train_y = train_labels[train_val_split]
-val_X = train_AP_features[~train_val_split]
-val_y = train_labels[~train_val_split]
+    """one hot encode the dummy_labels.
+    this is done because dummy_labels is a dataframe with the labels (BUILDINGID+FLOOR) 
+    as the column names
+    """
+    train_labels = np.asarray(dummy_labels) #labels is an array of shape 19937 x 13. (there are 13 types of labels)
 
-# turn the given validation set into a testing set
-test_df = pd.read_csv(path_validation,header = 0)
-test_AP_features = scale(np.asarray(test_df.iloc[:,0:520]).astype(float), axis=1) # convert integer to float and scale jointly (axis=1)
-test_labels = np.asarray(test_df["BUILDINGID"].map(str) + test_df["FLOOR"].map(str))
-test_labels = np.asarray(pd.get_dummies(test_labels))
+    # generate len(train_AP_features) of floats in between 0 and 1
+    train_val_split = np.random.rand(len(train_AP_features))
+    # convert train_val_split to an array of booleans: if elem < 0.7 = true, else: false
+    # train_val_split = train_val_split < 0.70 #should contain ~70% percent true
+    train_val_split = train_val_split < training_ratio #should contain ~90% percent true
 
-### build SAE encoder model
-print("\nPart 1: buidling SAE encoder model ...")
-if os.path.isfile(encoder_model_saved):
-    model = load_model(encoder_model_saved)
-else:
-    # create a model based on stacked autoencoder (SAE)
-    model = Sequential()
-    model.add(Dense(256, input_dim=input_dim, activation=encoder_activation, use_bias=encoder_bias))
-    model.add(Dense(128, activation=encoder_activation, use_bias=encoder_bias))
-    model.add(Dense(64, activation=encoder_activation, use_bias=encoder_bias))
-    model.add(Dense(128, activation=encoder_activation, use_bias=encoder_bias))
-    model.add(Dense(256, activation=encoder_activation, use_bias=encoder_bias))
-    model.add(Dense(input_dim, activation=encoder_activation, use_bias=encoder_bias))
-    model.compile(optimizer=encoder_optimizer, loss=encoder_loss)
+    # We aren't given a formal testing set, so we will treat the given validation
+    # set as the testing set: We will then split our given training set into
+    # training + validation
+    train_X = train_AP_features[train_val_split]
+    train_y = train_labels[train_val_split]
+    val_X = train_AP_features[~train_val_split]
+    val_y = train_labels[~train_val_split]
 
-    # train the model
-    model.fit(train_X, train_X, batch_size=batch_size, epochs=epochs, verbose=verbose)
+    # turn the given validation set into a testing set
+    test_df = pd.read_csv(path_validation,header = 0)
+    test_AP_features = scale(np.asarray(test_df.iloc[:,0:520]).astype(float), axis=1) # convert integer to float and scale jointly (axis=1)
+    test_labels = np.asarray(test_df["BUILDINGID"].map(str) + test_df["FLOOR"].map(str))
+    test_labels = np.asarray(pd.get_dummies(test_labels))
 
-    # remove the decoder part
-    num_to_remove = 3
-    for i in range(num_to_remove):
-        model.pop()
+    ### build SAE encoder model
+    print("\nPart 1: buidling SAE encoder model ...")
+    if False:
+    # if os.path.isfile(path_sae_model) and (os.path.getmtime(path_sae_model) > os.path.getmtime(__file__)):
+        model = load_model(path_sae_model)
+    else:
+        # create a model based on stacked autoencoder (SAE)
+        model = Sequential()
+        model.add(Dense(sae_hidden_layers[0], input_dim=input_dim, activation=sae_activation, use_bias=sae_bias))
+        for units in sae_hidden_layers[1:]:
+            model.add(Dense(units, activation=sae_activation, use_bias=sae_bias))  
+        model.add(Dense(input_dim, activation=sae_activation, use_bias=sae_bias))
+        model.compile(optimizer=sae_optimizer, loss=sae_loss)
 
-    # # set all layers (i.e., SAE encoder) to non-trainable (weights will not be updated)
-    # for layer in model.layers[:]:
-    #     layer.trainable = False
+        # train the model
+        model.fit(train_X, train_X, batch_size=batch_size, epochs=epochs, verbose=verbose)
+
+        # remove the decoder part
+        num_to_remove = (len(sae_hidden_layers) + 1) // 2
+        for i in range(num_to_remove):
+            model.pop()
+
+        # # set all layers (i.e., SAE encoder) to non-trainable (weights will not be updated)
+        # for layer in model.layers[:]:
+        #     layer.trainable = False
         
-    # save the model for later use
-    model.save(encoder_model_saved)
+        # save the model for later use
+        model.save(path_sae_model)
 
-### build and evaluate a complete model with the trained SAE encoder and a new classifier
-print("\nPart 2: buidling a complete model ...")
-for dr in dropout_rates:
-    # append a classifier to the model
-    model.add(Dense(128, activation=classifier_activation, use_bias=classifier_bias))
-    model.add(Dropout(dr))
-    model.add(Dense(128, activation=classifier_activation, use_bias=classifier_bias))
-    model.add(Dropout(dr))
-    model.add(Dense(output_dim, activation='softmax', use_bias=classifier_bias))
-    model.compile(optimizer=classifier_optimizer, loss=classifier_loss, metrics=['accuracy'])
+    ### build and evaluate a complete model with the trained SAE encoder and a new classifier
+    print("\nPart 2: buidling a complete model ...")
+    for dr in dropout_rates:
+        # append a classifier to the model
+        for units in classifier_hidden_layers:
+            model.add(Dense(units, activation=classifier_activation, use_bias=classifier_bias))
+            model.add(Dropout(dr))
+        model.add(Dense(output_dim, activation='softmax', use_bias=classifier_bias))
+        model.compile(optimizer=classifier_optimizer, loss=classifier_loss, metrics=['accuracy'])
 
-    # train the model
-    startTime = timer()
-    model.fit(train_X, train_y, validation_data=(val_X, val_y), batch_size=batch_size, epochs=epochs, verbose=verbose)
+        # train the model
+        startTime = timer()
+        model.fit(train_X, train_y, validation_data=(val_X, val_y), batch_size=batch_size, epochs=epochs, verbose=verbose)
 
-    # evaluate the model
-    elapsedTime = timer() - startTime
-    print("Model trained with dropout rate of %f in %e s." % (dr, elapsedTime))
-    loss, acc = model.evaluate(test_AP_features, test_labels)
-    losses.append(loss)
-    accuracies.append(acc)
+        # evaluate the model
+        elapsedTime = timer() - startTime
+        print("Model trained with dropout rate of %f in %e s." % (dr, elapsedTime))
+        loss, acc = model.evaluate(test_AP_features, test_labels)
+        losses.append(loss)
+        accuracies.append(acc)
 
-### print out final results
-now = datetime.datetime.now()
-path_results += "_" + now.strftime("%Y%m%d-%H%M%S") + ".org"
-f = open(path_results, 'w')
-f.write("* System parameters\n")
-f.write("  - Ratio of training data to overall data: %f\n" % training_ratio)
-f.write("  - Encoder activation: %s\n" % encoder_activation)
-f.write("  - Encoder bias: %s\n" % encoder_bias)
-f.write("  - Encoder loss: %s\n" % encoder_loss)
-f.write("  - Classifier activation: %s\n" % classifier_activation)
-f.write("  - Classifier bias: %s\n" % classifier_bias)
-f.write("  - Classifier optimizer: %s\n" % classifier_optimizer)
-f.write("  - Classifier loss: %s\n" % classifier_loss)
-f.write("* Performance\n")
-for i in range(len(dropout_rates)):
-    f.write("  - Dropout rate = %.2f: Loss = %e, Accuracy = %e\n" % (dropout_rates[i], losses[i], accuracies[i]))
-f.close()
+    ### print out final results
+    now = datetime.datetime.now()
+    path_out += "_" + now.strftime("%Y%m%d-%H%M%S") + ".org"
+    f = open(path_out, 'w')
+    f.write("* System parameters\n")
+    f.write("  - Ratio of training data to overall data: %f\n" % training_ratio)
+    f.write("  - Number of epochs: %d\n" % epochs)
+    f.write("  - Batch size: %d\n" % batch_size)
+    f.write("  - SAE hidden layers: %d" % sae_hidden_layers[0])
+    for units in sae_hidden_layers[1:]:
+        f.write("-%d" % units)
+    f.write("\n")
+    f.write("  - SAE activation: %s\n" % sae_activation)
+    f.write("  - SAE bias: %s\n" % sae_bias)
+    f.write("  - SAE optimizer: %s\n" % sae_optimizer)
+    f.write("  - SAE loss: %s\n" % sae_loss)
+    f.write("  - Classifier hidden layers: %d" % classifier_hidden_layers[0])
+    for units in classifier_hidden_layers[1:]:
+        f.write("-%d" % units)
+    f.write("\n")
+    f.write("  - Classifier activation: %s\n" % classifier_activation)
+    f.write("  - Classifier bias: %s\n" % classifier_bias)
+    f.write("  - Classifier optimizer: %s\n" % classifier_optimizer)
+    f.write("  - Classifier loss: %s\n" % classifier_loss)
+    f.write("* Performance\n")
+    for i in range(len(dropout_rates)):
+        f.write("  - Dropout rate = %.2f: Loss = %e, Accuracy = %e\n" % (dropout_rates[i], losses[i], accuracies[i]))
+    f.close()
