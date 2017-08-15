@@ -49,7 +49,7 @@ classifier_bias = False
 classifier_optimizer = 'adam'
 # classifier_optimizer = 'rmsprop'
 classifier_loss = 'categorical_crossentropy'
-dropout_rates = [0.5]           # for test
+# dropout_rates = [0.5]           # for test
 # dropout_rates = np.arange(6)*0.1  # 0.0,0.1,...,0.5
 #------------------------------------------------------------------------
 # input files
@@ -64,8 +64,8 @@ path_out =  path_base + '_out'
 path_sae_model = path_base + '_sae_model.hdf5'
 
 ### initialize variables
-losses = []
-accuracies = []
+# losses = []
+# accuracies = []
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -91,28 +91,36 @@ if __name__ == "__main__":
         "-S",
         "--sae_hidden_layers",
         help=
-        "numbers of units in SAE hidden layers in string; default is '256-128-64-128-256'",
-        default='256-128-64-128-256',
+        "comma-separated numbers of units in SAE hidden layers; default is '256,128,64,128,256'",
+        default='256,128,64,128,256',
         type=str)
     parser.add_argument(
         "-C",
         "--classifier_hidden_layers",
         help=
-        "numbers of units in classifier hidden layers in string (e.g., '128-128'); default '' (i.e., no hidden layer)",
+        "comma-separated numbers of units in classifier hidden layers; default '' (i.e., no hidden layer)",
         default='',
         type=str)
+    parser.add_argument(
+        "-D",
+        "--dropout",
+        help=
+        "dropout rate before and after classifier hidden layers; default 0.0",
+        default='0.0',
+        type=float)
     args = parser.parse_args()
 
     # set variables using command-line arguments
     gpu_id = args.gpu_id
     epochs = args.epochs
     batch_size = args.batch_size
-    sae_hidden_layers = [int(i) for i in (args.sae_hidden_layers).split('-')]
+    sae_hidden_layers = [int(i) for i in (args.sae_hidden_layers).split(',')]
     if args.classifier_hidden_layers == '':
         classifier_hidden_layers = ''
     else:
-        classifier_hidden_layers = [int(i) for i in (args.classifier_hidden_layers).split('-')]
-
+        classifier_hidden_layers = [int(i) for i in (args.classifier_hidden_layers).split(',')]
+    dropout = args.dropout
+        
     #------------------------------------------------------------------------
     # import keras and its backend (e.g., tensorflow)
     #------------------------------------------------------------------------
@@ -198,31 +206,33 @@ if __name__ == "__main__":
 
     ### build and evaluate a complete model with the trained SAE encoder and a new classifier
     print("\nPart 2: buidling a complete model ...")
-    for dr in dropout_rates:
-        # append a classifier to the model
-        for units in classifier_hidden_layers:
-            model.add(Dense(units, activation=classifier_activation, use_bias=classifier_bias))
-            model.add(Dropout(dr))
-        model.add(Dense(output_dim, activation='softmax', use_bias=classifier_bias))
-        model.compile(optimizer=classifier_optimizer, loss=classifier_loss, metrics=['accuracy'])
+    # for dr in dropout_rates:
+    # append a classifier to the model
+    model.add(Dropout(dropout))
+    for units in classifier_hidden_layers:
+        model.add(Dense(units, activation=classifier_activation, use_bias=classifier_bias))
+        model.add(Dropout(dropout))
+    model.add(Dense(output_dim, activation='softmax', use_bias=classifier_bias))
+    model.compile(optimizer=classifier_optimizer, loss=classifier_loss, metrics=['accuracy'])
 
-        # train the model
-        startTime = timer()
-        model.fit(train_X, train_y, validation_data=(val_X, val_y), batch_size=batch_size, epochs=epochs, verbose=verbose)
+    # train the model
+    startTime = timer()
+    model.fit(train_X, train_y, validation_data=(val_X, val_y), batch_size=batch_size, epochs=epochs, verbose=verbose)
 
-        # evaluate the model
-        elapsedTime = timer() - startTime
-        print("Model trained with dropout rate of %f in %e s." % (dr, elapsedTime))
-        loss, acc = model.evaluate(test_AP_features, test_labels)
-        losses.append(loss)
-        accuracies.append(acc)
+    # evaluate the model
+    elapsedTime = timer() - startTime
+    # print("Model trained with dropout rate of %f in %e s." % (dr, elapsedTime))
+    print("Model trained in %e s." % elapsedTime)
+    loss, accuracy = model.evaluate(test_AP_features, test_labels)
+    # losses.append(loss)
+    # accuracies.append(acc)
 
     ### print out final results
     now = datetime.datetime.now()
     path_out += "_" + now.strftime("%Y%m%d-%H%M%S") + ".org"
     f = open(path_out, 'w')
     f.write("* System parameters\n")
-    f.write("  - Ratio of training data to overall data: %f\n" % training_ratio)
+    f.write("  - Ratio of training data to overall data: %.2f\n" % training_ratio)
     f.write("  - Number of epochs: %d\n" % epochs)
     f.write("  - Batch size: %d\n" % batch_size)
     f.write("  - SAE hidden layers: %d" % sae_hidden_layers[0])
@@ -235,17 +245,20 @@ if __name__ == "__main__":
     f.write("  - SAE loss: %s\n" % sae_loss)
     f.write("  - Classifier hidden layers: ")
     if classifier_hidden_layers == '':
-        f.write("N/A")
+        f.write("N/A\n")
     else:
         f.write("%d" % classifier_hidden_layers[0])
         for units in classifier_hidden_layers[1:]:
             f.write("-%d" % units)
-    f.write("\n")
-    f.write("  - Classifier activation: %s\n" % classifier_activation)
+        f.write("\n")
+        f.write("  - Classifier hidden layer activation: %s\n" % classifier_activation)
     f.write("  - Classifier bias: %s\n" % classifier_bias)
     f.write("  - Classifier optimizer: %s\n" % classifier_optimizer)
     f.write("  - Classifier loss: %s\n" % classifier_loss)
+    f.write("  - Classifier dropout rate: %.2f\n" % dropout)
     f.write("* Performance\n")
-    for i in range(len(dropout_rates)):
-        f.write("  - Dropout rate = %.2f: Loss = %e, Accuracy = %e\n" % (dropout_rates[i], losses[i], accuracies[i]))
+    # for i in range(len(dropout_rates)):
+    # f.write("  - Dropout rate = %.2f: Loss = %e, Accuracy = %e\n" % (dropout_rates[i], losses[i], accuracies[i]))
+    f.write("  - Loss = %e\n" % loss)
+    f.write("  - Accuracy = %e\n" % accuracy)
     f.close()
