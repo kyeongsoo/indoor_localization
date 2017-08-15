@@ -98,8 +98,8 @@ if __name__ == "__main__":
         "-C",
         "--classifier_hidden_layers",
         help=
-        "numbers of units in classifier hidden layers in string; default is '128-128'",
-        default='128-128',
+        "numbers of units in classifier hidden layers in string (e.g., '128-128'); default '' (i.e., no hidden layer)",
+        default='',
         type=str)
     args = parser.parse_args()
 
@@ -108,7 +108,10 @@ if __name__ == "__main__":
     epochs = args.epochs
     batch_size = args.batch_size
     sae_hidden_layers = [int(i) for i in (args.sae_hidden_layers).split('-')]
-    classifier_hidden_layers = [int(i) for i in (args.classifier_hidden_layers).split('-')]
+    if args.classifier_hidden_layers == '':
+        classifier_hidden_layers = ''
+    else:
+        classifier_hidden_layers = [int(i) for i in (args.classifier_hidden_layers).split('-')]
 
     #------------------------------------------------------------------------
     # import keras and its backend (e.g., tensorflow)
@@ -230,9 +233,13 @@ if __name__ == "__main__":
     f.write("  - SAE bias: %s\n" % sae_bias)
     f.write("  - SAE optimizer: %s\n" % sae_optimizer)
     f.write("  - SAE loss: %s\n" % sae_loss)
-    f.write("  - Classifier hidden layers: %d" % classifier_hidden_layers[0])
-    for units in classifier_hidden_layers[1:]:
-        f.write("-%d" % units)
+    f.write("  - Classifier hidden layers: ")
+    if classifier_hidden_layers == '':
+        f.write("N/A")
+    else:
+        f.write("%d" % classifier_hidden_layers[0])
+        for units in classifier_hidden_layers[1:]:
+            f.write("-%d" % units)
     f.write("\n")
     f.write("  - Classifier activation: %s\n" % classifier_activation)
     f.write("  - Classifier bias: %s\n" % classifier_bias)

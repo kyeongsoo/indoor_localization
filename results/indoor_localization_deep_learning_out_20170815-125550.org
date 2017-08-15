@@ -1,0 +1,16 @@
+* System parameters
+  - Ratio of training data to overall data: 0.900000
+  - Number of epochs: 20
+  - Batch size: 10
+  - SAE hidden layers: 64-4-64
+  - SAE activation: relu
+  - SAE bias: False
+  - SAE optimizer: adam
+  - SAE loss: mse
+  - Classifier hidden layers: 8
+  - Classifier activation: tanh
+  - Classifier bias: False
+  - Classifier optimizer: adam
+  - Classifier loss: categorical_crossentropy
+* Performance
+  - Dropout rate = 0.50: Loss = 5.827357e-01, Accuracy = 8.379838e-01
