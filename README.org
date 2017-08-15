@@ -1,5 +1,5 @@
 #+TITLE: Indoor Localization
-#+DATE: Time-stamp: <2017-08-15 20:43:26 Kyeong Soo (Joseph) Kim>
+#+DATE: Time-stamp: <2017-08-15 20:48:05 Kyeong Soo (Joseph) Kim>
 #+OPTIONS: toc:t
 
 This is a repository for research on indoor localization based on wireless
@@ -9,7 +9,7 @@ fingerprinting techniques. For more details, please visit [[http://kyeongsoo.git
 - Today, we further simplified the buildig/floor classification system by
   removing a hidden layer from the classifier (therefore no dropout), resultig
   in the configuration of '520-64-4-13' (including input and output layers) with
-  loss=7.968766e-01 and accuracy=9.234923e-01 ([[./results/indoor_localization_deep_learning_out_20170815-203448.org][results]]). This might mean that
+  loss=7.050603e-01 and accuracy=9.234923e-01 ([[./results/indoor_localization_deep_learning_out_20170815-203448.org][results]]). This might mean that
   the 4-dimensional data from the SAE encoder (64-4) can be linearly
   separable. Due to training of SAE encoder weights for the combined system,
   however, it needs further investigation.
