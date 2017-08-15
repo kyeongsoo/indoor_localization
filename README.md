@@ -1,26 +1,26 @@
-- [2017-08-15](#org76919f1)
-- [2017-08-14](#org8aaca9e)
-- [2017-08-13](#org5a303c8)
-- [2017-08-12](#orgbaa3cfe)
+- [2017-08-15](#orgc848483)
+- [2017-08-14](#org2925446)
+- [2017-08-13](#org34e3cd8)
+- [2017-08-12](#org1a3ab34)
 
 This is a repository for research on indoor localization based on wireless fingerprinting techniques. For more details, please visit [XJTLU SURF project home page](http://kyeongsoo.github.io/research/projects/indoor_localization/index.html).
 
 
-<a id="org76919f1"></a>
+<a id="orgc848483"></a>
 
 # 2017-08-15
 
--   Today, we further simplified the buildig/floor classification system by removing a hidden layer from the classifier (therefore no dropout), resultig in the configuration of '520-64-4-13' (including input and output layers) with loss=7.968766e-01 and accuracy=9.126913e-01 ([results](./results/indoor_localization_deep_learning_out_20170815-125635.org)).
+-   Today, we further simplified the buildig/floor classification system by removing a hidden layer from the classifier (therefore no dropout), resultig in the configuration of '520-64-4-13' (including input and output layers) with loss=7.968766e-01 and accuracy=9.126913e-01 ([results](./results/indoor_localization_deep_learning_out_20170815-125635.org)). This might mean that the 4-dimensional data from the SAE encoder (64-4) can be linearly separable. Due to training of SAE encoder weights for the combined system, however, it needs further investigation.
 
 
-<a id="org8aaca9e"></a>
+<a id="org2925446"></a>
 
 # 2017-08-14
 
 -   We investigated whether a couple of strong RSSs in a fingerprint dominate the classification performance in buildig/floor classification. After many trials with different configurations, we could obtain more than 90% accuracies with the stacked-autoencoder (SAE) having 64-4-64 hidden layers (i.e., just 4 dimension) and the classifier having just one 128-node hidden layer (the results are [here](./results/indoor_localization_deep_learning_out_20170814-184009.org)). This implies that a small number of RSSs from access points (APs) deployed in a building/floor can give enough information for the building/floor classification; the localization on the same floor, by the way, would be quite different, where RSSs from possibly many APs have a significant impact on the localization performance.
 
 
-<a id="org5a303c8"></a>
+<a id="org34e3cd8"></a>
 
 # 2017-08-13
 
@@ -28,7 +28,7 @@ This is a repository for research on indoor localization based on wireless finge
 -   We [replace the activation functions of the hidden-layer from 'tanh' to 'relu'](./python/indoor_localization-2.ipynb) per the second answer to [this qustion](https://stats.stackexchange.com/questions/218542/which-activation-function-for-output-layer). The results are [here](./results/indoor_localization-2_20170813.csv). Compared to the case with 'tanh', however, the results seem to not improve (a bit inline with the gut-feeling suggestions from [this](https://datascience.stackexchange.com/questions/10048/what-is-the-best-keras-model-for-multi-class-classification)).
 
 
-<a id="orgbaa3cfe"></a>
+<a id="org1a3ab34"></a>
 
 # 2017-08-12
 
