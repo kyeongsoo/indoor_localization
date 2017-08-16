@@ -32,6 +32,7 @@ training_ratio = 0.9            # ratio of training data to overall data
 input_dim = 520
 output_dim = 13                 # number of labels
 verbose = 1                     # 0 for turning off logging
+seed = 7                        # random number seed for reproducibility
 #------------------------------------------------------------------------
 # stacked auto encoder (sae)
 #------------------------------------------------------------------------
@@ -63,7 +64,8 @@ path_base = '../results/' + os.path.splitext(os.path.basename(__file__))[0]
 path_out =  path_base + '_out'
 path_sae_model = path_base + '_sae_model.hdf5'
 
-### initialize variables
+### initialize
+numpy.random.seed(seed)
 # losses = []
 # accuracies = []
 
