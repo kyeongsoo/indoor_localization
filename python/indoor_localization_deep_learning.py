@@ -65,7 +65,7 @@ path_out =  path_base + '_out'
 path_sae_model = path_base + '_sae_model.hdf5'
 
 ### initialize
-numpy.random.seed(seed)
+np.random.seed(seed)
 # losses = []
 # accuracies = []
 
@@ -145,8 +145,7 @@ if __name__ == "__main__":
     building_ids_str = train_df['BUILDINGID'].map(str) #convert all the building ids to strings
     building_floors_str = train_df['FLOOR'].map(str) #convert all the building floors to strings
 
-    res = building_ids_str + building_floors_str #element wise concatenation of BUILDINGID+FLOOR
-    train_labels = np.asarray(building_ids_str + building_floors_str)
+    train_labels = np.asarray(building_ids_str + building_floors_str) #element wise concatenation of BUILDINGID+FLOOR
 
     # convert labels to categorical variables, dummy_labels has type 'pandas.core.frame.DataFrame'
     dummy_labels = pd.get_dummies(train_labels)
@@ -233,6 +232,7 @@ if __name__ == "__main__":
     now = datetime.datetime.now()
     path_out += "_" + now.strftime("%Y%m%d-%H%M%S") + ".org"
     f = open(path_out, 'w')
+    f.write("#+STARTUP: showall\n")  # unfold everything when opening
     f.write("* System parameters\n")
     f.write("  - Ratio of training data to overall data: %.2f\n" % training_ratio)
     f.write("  - Number of epochs: %d\n" % epochs)
