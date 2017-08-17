@@ -1,3 +1,4 @@
+#+STARTUP: showall
 * System parameters
   - Ratio of training data to overall data: 0.900000
   - SAE hidden layers: 128-32-8-32-128
