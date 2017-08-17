@@ -1,9 +1,17 @@
 #+TITLE: Indoor Localization
-#+DATE: Time-stamp: <2017-08-15 20:48:05 Kyeong Soo (Joseph) Kim>
+#+DATE: Time-stamp: <2017-08-17 21:05:00 Kyeong Soo (Joseph) Kim>
 #+OPTIONS: toc:t
 
 This is a repository for research on indoor localization based on wireless
 fingerprinting techniques. For more details, please visit [[http://kyeongsoo.github.io/research/projects/indoor_localization/index.html][XJTLU SURF project home page]].
+
+* 2017-08-17
+- Implement [[./python/bf_classification.py][a new program]], which calculates accuracies separately for building
+  and floor classification, to investigate the hierarchical nature of the
+  classification problem at hand; the deep-learning-based place recognition
+  system described in [[https://arxiv.org/abs/1611.02049v2][the key paper]] does not take into account this and carries
+  out classification based on flattened lables (i.e., (building, floor) ->
+  'building-floor').
 
 * 2017-08-15
 - Today, we further simplified the buildig/floor classification system by
