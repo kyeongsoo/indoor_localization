@@ -1,5 +1,5 @@
 #+TITLE: Indoor Localization
-#+DATE: Time-stamp: <2017-08-17 21:21:45 Kyeong Soo (Joseph) Kim>
+#+DATE: Time-stamp: <2017-08-18 07:20:42 Kyeong Soo (Joseph) Kim>
 #+OPTIONS: toc:t
 
 This is a repository for research on indoor localization based on wireless
@@ -10,14 +10,17 @@ home page]].
 - Implement [[./python/bf_classification.py][a new program]], which calculates accuracies separately for building
   and floor classification, to investigate the hierarchical nature of the
   classification problem at hand; the deep-learning-based place recognition
-  system described in [[https://arxiv.org/abs/1611.02049v2][the key paper]] does not take into account this and carries
-  out classification based on flattened labels (i.e., (building, floor) ->
-  'building-floor'). We are now considering two options to guarantee 100%
+  system described in the key paper[fn:2] does not take into account this and
+  carries out classification based on flattened labels (i.e., (building, floor)
+  -> 'building-floor'). We are now considering two options to guarantee 100%
   accuracy for the building classification:
   + Hierarchical classifier with a tree structure and multiple classifiers and
     data sets, which is a conventional approach and a reference for this
-    investigation;
-  + One classifier with a weighted loss function (e.g., [[https://www.jstage.jst.go.jp/article/imt/10/3/10_488/_pdf][this]]).
+    investigation.
+  + One classifier with a weighted loss function[fn:1]. In our case, however,
+    the loss function does not give a closed-form gradient function, which
+    forces us to use evolutionary algorithms (e.g., [[https://en.wikipedia.org/wiki/Genetic_algorithm][genetic algorithm]]) for
+    training of neural network weights.
 
 * 2017-08-15
 - Today, we further simplified the building/floor classification system by
@@ -33,24 +36,33 @@ home page]].
   classification performance in building/floor classification. After many trials
   with different configurations, we could obtain more than 90% accuracies with
   the stacked-autoencoder (SAE) having 64-4-64 hidden layers (i.e., just 4
-  dimension) and the classifier having just one 128-node hidden layer (the
-  results are [[./results/indoor_localization_deep_learning_out_20170814-184009.org][here]]). This implies that a small number of RSSs from access points
-  (APs) deployed in a building/floor can give enough information for the
+  dimension) and the classifier having just one 128-node hidden layer
+  ([[./results/indoor_localization_deep_learning_out_20170814-184009.org][results]]). This implies that a small number of RSSs from access points (APs)
+  deployed in a building/floor can give enough information for the
   building/floor classification; the localization on the same floor, by the way,
   would be quite different, where RSSs from possibly many APs have a significant
   impact on the localization performance.
 
 * 2017-08-13
 - We finally obtained [[./results/indoor_localization_deep_learning.org][more than 90% accuracies]] from [[./python/indoor_localization_deep_learning.py][this version]], which are
-  comparable to the results of [[https://arxiv.org/abs/1611.02049v2][the key paper]]; refer to the [[https://keras.io/getting-started/sequential-model-guide/#compilation][multi-class
+  comparable to the results of the key paper [fn:2]; refer to the [[https://keras.io/getting-started/sequential-model-guide/#compilation][multi-class
   clarification example]] for classifier parameter settings.
 - We [[./python/indoor_localization-2.ipynb][replace the activation functions of the hidden-layer from 'tanh' to 'relu']]
-  per the second answer to [[https://stats.stackexchange.com/questions/218542/which-activation-function-for-output-layer][this question]]. The results are [[./results/indoor_localization-2_20170813.csv][here]]. Compared to the
-  case with 'tanh', however, the results seem to not improve (a bit in line with
-  the gut-feeling suggestions from [[https://datascience.stackexchange.com/questions/10048/what-is-the-best-keras-model-for-multi-class-classification][this]]).
+  per the second answer to [[https://stats.stackexchange.com/questions/218542/which-activation-function-for-output-layer][this question]] ([[./results/indoor_localization-2_20170813.csv][results]]). Compared to the case with
+  'tanh', however, the results seem to not improve (a bit in line with the
+  gut-feeling suggestions from [[https://datascience.stackexchange.com/questions/10048/what-is-the-best-keras-model-for-multi-class-classification][this]]).
 
 * 2017-08-12
 - We first tried [[./python/indoor_localization-1.ipynb][a feed-forward classifier with just one hidden layer]] per the
-  comments from [[https://stats.stackexchange.com/questions/181/how-to-choose-the-number-of-hidden-layers-and-nodes-in-a-feedforward-neural-netw][this]]. The results are [[./results/indoor_localization-1_20170812.csv][here]] (* /nh/: number of hidden layer
-  nodes, /dr/: [[https://en.wikipedia.org/wiki/Dropout_(neural_networks)][dropout]] rate, /loss/: [[http://deeplearning.net/software/theano/library/tensor/nnet/nnet.html#theano.tensor.nnet.nnet.categorical_crossentropy][categorical cross-entropy]], /acc/: accuracy
-  *).
+  comments from [[https://stats.stackexchange.com/questions/181/how-to-choose-the-number-of-hidden-layers-and-nodes-in-a-feedforward-neural-netw][this]] ([[./results/indoor_localization-1_20170812.csv][results]]). (* /nh/: number of hidden layer nodes, /dr/:
+  [[https://en.wikipedia.org/wiki/Dropout_(neural_networks)][dropout]] rate, /loss/: [[http://deeplearning.net/software/theano/library/tensor/nnet/nnet.html#theano.tensor.nnet.nnet.categorical_crossentropy][categorical cross-entropy]], /acc/: accuracy *).
+
+* Footnotes
+
+[fn:1] T. Yamashita et al., "Cost-alleviative learning for deep convolutional
+neural network-based facial part labeling," /IPSJ Transactions on Computer
+Vision and Applications/, vol. 7, pp. 99-103, 2015. [[http://doi.org/10.2197/ipsjtcva.7.99][(DOI)]]
+
+[fn:2] M. Nowicki and J. Wietrzykowski, "Low-effort place recognition with WiFi
+fingerprints using deep learning," arXiv:1611.02049v2 [cs.RO] [[https://arxiv.org/abs/1611.02049v2][(arXiv)]]
+
