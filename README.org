@@ -1,6 +1,7 @@
 #+TITLE: Indoor Localization
-#+DATE: Time-stamp: <2017-08-18 07:20:42 Kyeong Soo (Joseph) Kim>
+#+DATE: Time-stamp: <2017-08-18 11:44:10 Kyeong Soo (Joseph) Kim>
 #+OPTIONS: toc:t
+#+STARTUP: showall
 
 This is a repository for research on indoor localization based on wireless
 fingerprinting techniques. For more details, please visit [[http://kyeongsoo.github.io/research/projects/indoor_localization/index.html][XJTLU SURF project
@@ -10,17 +11,18 @@ home page]].
 - Implement [[./python/bf_classification.py][a new program]], which calculates accuracies separately for building
   and floor classification, to investigate the hierarchical nature of the
   classification problem at hand; the deep-learning-based place recognition
-  system described in the key paper[fn:2] does not take into account this and
+  system described in the key paper[fn:1] does not take into account this and
   carries out classification based on flattened labels (i.e., (building, floor)
   -> 'building-floor'). We are now considering two options to guarantee 100%
   accuracy for the building classification:
   + Hierarchical classifier with a tree structure and multiple classifiers and
     data sets, which is a conventional approach and a reference for this
     investigation.
-  + One classifier with a weighted loss function[fn:1]. In our case, however,
+  + One classifier with a weighted loss function[fn:2]. In our case, however,
     the loss function does not give a closed-form gradient function, which
     forces us to use evolutionary algorithms (e.g., [[https://en.wikipedia.org/wiki/Genetic_algorithm][genetic algorithm]]) for
-    training of neural network weights.
+    training of neural network weights or [[https://github.com/fchollet/keras/issues/741][multi-label classification with
+    different class weights]] (i.e., higher weights for buildings in our case).
 
 * 2017-08-15
 - Today, we further simplified the building/floor classification system by
@@ -45,8 +47,9 @@ home page]].
 
 * 2017-08-13
 - We finally obtained [[./results/indoor_localization_deep_learning.org][more than 90% accuracies]] from [[./python/indoor_localization_deep_learning.py][this version]], which are
-  comparable to the results of the key paper [fn:2]; refer to the [[https://keras.io/getting-started/sequential-model-guide/#compilation][multi-class
-  clarification example]] for classifier parameter settings.
+  comparable to the results of the key paper [fn:1] based on the [[https://archive.ics.uci.edu/ml/datasets/ujiindoorloc][UJIIndoorLoc
+  Data Set]]; refer to the [[https://keras.io/getting-started/sequential-model-guide/#compilation][multi-class clarification example]] for classifier
+  parameter settings.
 - We [[./python/indoor_localization-2.ipynb][replace the activation functions of the hidden-layer from 'tanh' to 'relu']]
   per the second answer to [[https://stats.stackexchange.com/questions/218542/which-activation-function-for-output-layer][this question]] ([[./results/indoor_localization-2_20170813.csv][results]]). Compared to the case with
   'tanh', however, the results seem to not improve (a bit in line with the
@@ -59,10 +62,10 @@ home page]].
 
 * Footnotes
 
-[fn:1] T. Yamashita et al., "Cost-alleviative learning for deep convolutional
+[fn:1] M. Nowicki and J. Wietrzykowski, "Low-effort place recognition with WiFi
+fingerprints using deep learning," arXiv:1611.02049v2 [cs.RO] [[https://arxiv.org/abs/1611.02049v2][(arXiv)]]
+
+[fn:2] T. Yamashita et al., "Cost-alleviative learning for deep convolutional
 neural network-based facial part labeling," /IPSJ Transactions on Computer
 Vision and Applications/, vol. 7, pp. 99-103, 2015. [[http://doi.org/10.2197/ipsjtcva.7.99][(DOI)]]
-
-[fn:2] M. Nowicki and J. Wietrzykowski, "Low-effort place recognition with WiFi
-fingerprints using deep learning," arXiv:1611.02049v2 [cs.RO] [[https://arxiv.org/abs/1611.02049v2][(arXiv)]]
 
