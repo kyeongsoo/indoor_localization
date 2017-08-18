@@ -14,6 +14,7 @@
 #           recognition with WiFi fingerprints using deep learning</a>".
 #
 
+
 ### import modules (except keras and its backend)
 import argparse
 import datetime
@@ -25,18 +26,14 @@ from sklearn.preprocessing import scale
 from timeit import default_timer as timer
 
 
-
-
-
-
 ### global constant variables
 #------------------------------------------------------------------------
 # general
 #------------------------------------------------------------------------
 TRAINING_RATIO = 0.9            # ratio of training data to overall data
 INPUT_DIM = 520
-OUTPUT_DIM = 13                 # number of labels
-VERBOSE = 1                     # 0 for turning off logging
+OUTPUT_DIM = 8                  # number of labels
+VERBOSE = 0                     # 0 for turning off logging
 #------------------------------------------------------------------------
 # stacked auto encoder (sae)
 #------------------------------------------------------------------------
@@ -48,12 +45,12 @@ SAE_LOSS = 'mse'
 #------------------------------------------------------------------------
 # classifier
 #------------------------------------------------------------------------
-# CLASSIFIER_ACTIVATION = 'relu'
-CLASSIFIER_ACTIVATION = 'tanh'
+CLASSIFIER_ACTIVATION = 'relu'
+#CLASSIFIER_ACTIVATION = 'tanh'
 CLASSIFIER_BIAS = False
 CLASSIFIER_OPTIMIZER = 'adam'
 # CLASSIFIER_OPTIMIZER = 'rmsprop'
-CLASSIFIER_LOSS = 'categorical_crossentropy'
+CLASSIFIER_LOSS = 'binary_crossentropy'
 #------------------------------------------------------------------------
 # input files
 #------------------------------------------------------------------------
@@ -112,7 +109,19 @@ if __name__ == "__main__":
         "--dropout",
         help=
         "dropout rate before and after classifier hidden layers; default 0.0",
-        default='0.0',
+        default=0.0,
+        type=float)
+    parser.add_argument(
+        "--building_weight",
+        help=
+        "weight for building classes in classifier; default 10.0",
+        default=10.0,
+        type=float)
+    parser.add_argument(
+        "--floor_weight",
+        help=
+        "weight for floor classes in classifier; default 1.0",
+        default=1.0,
         type=float)
     args = parser.parse_args()
 
@@ -127,6 +136,8 @@ if __name__ == "__main__":
     else:
         classifier_hidden_layers = [int(i) for i in (args.classifier_hidden_layers).split(',')]
     dropout = args.dropout
+    building_weight = args.building_weight
+    floor_weight = args.floor_weight
 
     ### initialize random seed generator
     np.random.seed(random_seed)
@@ -134,10 +145,12 @@ if __name__ == "__main__":
     #------------------------------------------------------------------------
     # import keras and its backend (e.g., tensorflow)
     #------------------------------------------------------------------------
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
     if gpu_id >= 0:
-        # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
-    # os.environ['TF_CPP_MIN_LOG_LEVEL']='2'  # supress warning messages
+    else:
+        os.environ["CUDA_VISIBLE_DEVICES"] = ''
+    os.environ['TF_CPP_MIN_LOG_LEVEL']='2'  # supress warning messages
     import tensorflow as tf
     from keras.layers import Dense, Dropout
     from keras.models import Sequential, load_model
@@ -149,20 +162,10 @@ if __name__ == "__main__":
     # scale transforms data to center to the mean and component wise scale to unit variance
     train_AP_features = scale(np.asarray(train_AP_strengths).astype(float), axis=1) # convert integer to float and scale jointly (axis=1)
 
-    # the following two objects are actually pandas.core.series.Series objects
-    building_ids_str = train_df['BUILDINGID'].map(str) #convert all the building ids to strings
-    building_floors_str = train_df['FLOOR'].map(str) #convert all the building floors to strings
-
-    train_labels = np.asarray(building_ids_str + building_floors_str) #element wise concatenation of BUILDINGID+FLOOR
-
-    # convert labels to categorical variables, dummy_labels has type 'pandas.core.frame.DataFrame'
-    dummy_labels = pd.get_dummies(train_labels)
-
-    """one hot encode the dummy_labels.
-    this is done because dummy_labels is a dataframe with the labels (BUILDINGID+FLOOR) 
-    as the column names
-    """
-    train_labels = np.asarray(dummy_labels) #labels is an array of shape 19937 x 13. (there are 13 types of labels)
+    # build labels
+    blds = np.asarray(pd.get_dummies(train_df['BUILDINGID']))
+    flrs = np.asarray(pd.get_dummies(train_df['FLOOR']))
+    train_labels = np.concatenate((blds, flrs), axis=1) # labels is an array of 19937 x 8 (3 for BUILDINGID and 5 for FLOOR in one hot encoding
 
     # generate len(train_AP_features) of floats in between 0 and 1
     train_val_split = np.random.rand(len(train_AP_features))
@@ -180,8 +183,10 @@ if __name__ == "__main__":
     # turn the given validation set into a testing set
     test_df = pd.read_csv(path_validation,header = 0)
     test_AP_features = scale(np.asarray(test_df.iloc[:,0:520]).astype(float), axis=1) # convert integer to float and scale jointly (axis=1)
-    test_labels = np.asarray(test_df["BUILDINGID"].map(str) + test_df["FLOOR"].map(str))
-    test_labels = np.asarray(pd.get_dummies(test_labels))
+
+    blds = np.asarray(pd.get_dummies(test_df['BUILDINGID']))
+    flrs = np.asarray(pd.get_dummies(test_df['FLOOR']))
+    test_labels = np.concatenate((blds, flrs), axis=1)
 
     ### build SAE encoder model
     print("\nPart 1: buidling SAE encoder model ...")
@@ -214,101 +219,35 @@ if __name__ == "__main__":
 
     ### build and evaluate a complete model with the trained SAE encoder and a new classifier
     print("\nPart 2: buidling a complete model ...")
-
-'''
-A code skeleton from keras github (https://github.com/fchollet/keras/issues/741):
-=================================================================================
-# Build a classifier optimized for maximizing f1_score (uses class_weights)
-
-clf = Sequential()
-
-clf.add(Dropout(0.3))
-clf.add(Dense(xt.shape[1], 1600, activation='relu'))
-clf.add(Dropout(0.6))
-clf.add(Dense(1600, 1200, activation='relu'))
-clf.add(Dropout(0.6))
-clf.add(Dense(1200, 800, activation='relu'))
-clf.add(Dropout(0.6))
-clf.add(Dense(800, yt.shape[1], activation='sigmoid'))
-
-clf.compile(optimizer=Adam(), loss='binary_crossentropy')
-
-W ={0:5, 1:1}           # class 0 has five times more important than class 1
-clf.fit(xt, yt, batch_size=64, nb_epoch=300, validation_data=(xs, ys), class_weight=W, verbose=0)
-
-preds = clf.predict(xs)
-
-preds[preds>=0.5] = 1
-preds[preds<0.5] = 0
-
-print f1_score(ys, preds, average='macro')
-'''
-
-    '''
-    define custom accuracy functions based on the followoign one hot encoding:
-    0:  00 (1st digit: building, 2nd digit: floor)
-    1:  01
-    2:  02
-    3:  03
-    4:  10
-    5:  11
-    6:  12
-    7:  13
-    8:  20
-    9:  21
-    10: 22
-    11: 23
-    12: 24
-    '''
-    import keras.backend as K
-    from keras.metrics import categorical_accuracy
-
-    def bld_idx(x):
-        def b0(): return tf.constant(0, dtype=x.dtype)
-        def b1(): return tf.constant(1, dtype=x.dtype)
-        def b2(): return tf.constant(2, dtype=x.dtype)
-        return tf.case([(tf.less(x, tf.constant(4, dtype=x.dtype)), b0),
-                        (tf.less(x, tf.constant(8, dtype=x.dtype)), b1)],
-                       default = b2, exclusive=False)
-
-    def building_accuracy(y_true, y_pred):
-        idx_true = K.argmax(y_true, axis=-1)
-        idx_pred = K.argmax(y_pred, axis=-1)
-        bld_true = tf.map_fn(bld_idx, idx_true)
-        bld_pred = tf.map_fn(bld_idx, idx_pred)
-        return K.cast(K.equal(bld_true, bld_pred), K.floatx())
-    
-    def flr_idx(x):
-        def f0(): return x
-        def f1(): return tf.subtract(x, tf.constant(4, dtype=x.dtype))
-        def f2(): return tf.subtract(x, tf.constant(8, dtype=x.dtype))
-        return tf.case([(tf.less(x, tf.constant(4, dtype=x.dtype)), f0),
-                        (tf.less(x, tf.constant(8, dtype=x.dtype)), f1)],
-                       default = f2, exclusive=False)
-   
-    def floor_accuracy(y_true, y_pred):
-        idx_true = K.argmax(y_true, axis=-1)
-        idx_pred = K.argmax(y_pred, axis=-1)
-        flr_true = tf.map_fn(flr_idx, idx_true)
-        flr_pred = tf.map_fn(flr_idx, idx_pred)
-        return K.cast(K.equal(flr_true, flr_pred), K.floatx())
-    
     # append a classifier to the model
+    class_weight = {
+        0: building_weight, 1: building_weight, 2: building_weight,  # buildings
+        3: floor_weight, 4: floor_weight, 5: floor_weight, 6:floor_weight, 7: floor_weight  # floors
+    }
     model.add(Dropout(dropout))
     for units in classifier_hidden_layers:
         model.add(Dense(units, activation=CLASSIFIER_ACTIVATION, use_bias=CLASSIFIER_BIAS))
         model.add(Dropout(dropout))
-    model.add(Dense(OUTPUT_DIM, activation='softmax', use_bias=CLASSIFIER_BIAS))
-    model.compile(optimizer=CLASSIFIER_OPTIMIZER, loss=CLASSIFIER_LOSS, metrics=['accuracy', building_accuracy, floor_accuracy])
+    model.add(Dense(OUTPUT_DIM, activation='sigmoid', use_bias=CLASSIFIER_BIAS)) # 'sigmoid' for multi-label classification
+    model.compile(optimizer=CLASSIFIER_OPTIMIZER, loss=CLASSIFIER_LOSS, metrics=['accuracy'])
 
     # train the model
     startTime = timer()
-    model.fit(train_X, train_y, validation_data=(val_X, val_y), batch_size=batch_size, epochs=epochs, verbose=VERBOSE)
+    model.fit(train_X, train_y, validation_data=(val_X, val_y), batch_size=batch_size, epochs=epochs, class_weight=class_weight, verbose=VERBOSE)
 
     # evaluate the model
     elapsedTime = timer() - startTime
     print("Model trained in %e s." % elapsedTime)
-    loss, acc, acc_bld, acc_flr = model.evaluate(test_AP_features, test_labels)
+    # loss, acc, acc_bld, acc_flr = model.evaluate(test_AP_features, test_labels)
+    preds = model.predict(test_AP_features, batch_size=batch_size)
+    n_preds = preds.shape[0]
+    # acc = np.mean(np.equal(np.argmax(test_labels), np.argmax(preds)).astype(float))
+    blds = preds[:, :3]
+    blds = np.greater_equal(blds, np.tile(np.amax(blds, axis=1).reshape(n_preds, 1), (1, 3))).astype(int) # set maximum column to 1 and others to 0 (row-wise)
+    acc_bld = np.mean(np.equal(np.argmax(test_labels[:, :3], axis=1), np.argmax(blds, axis=1)).astype(float))
+    flrs = preds[:,3:]
+    flrs = np.greater_equal(flrs, np.tile(np.amax(flrs, axis=1).reshape(n_preds,1), (1,5))).astype(int) # set maximum column to 1 and others to 0 (row-wise)
+    acc_flr = np.mean(np.equal(np.argmax(test_labels[:, 3:], axis=1), np.argmax(flrs, axis=1)).astype(float))
 
     ### print out final results
     now = datetime.datetime.now()
@@ -341,9 +280,11 @@ print f1_score(ys, preds, average='macro')
     f.write("  - Classifier optimizer: %s\n" % CLASSIFIER_OPTIMIZER)
     f.write("  - Classifier loss: %s\n" % CLASSIFIER_LOSS)
     f.write("  - Classifier dropout rate: %.2f\n" % dropout)
+    f.write("  - Classifier class weight for buildings: %.2f\n" % building_weight)
+    f.write("  - Classifier class weight for floors: %.2f\n" % floor_weight)
     f.write("* Performance\n")
-    f.write("  - Loss = %e\n" % loss)
-    f.write("  - Accuracy (overall) = %e\n" % acc)
+    # f.write("  - Loss = %e\n" % loss)
+    # f.write("  - Accuracy (overall) = %e\n" % acc)
     f.write("  - Accuracy (building) = %e\n" % acc_bld)
     f.write("  - Accuracy (floor) = %e\n" % acc_flr)
     f.close()
