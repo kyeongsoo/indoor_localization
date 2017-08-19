@@ -1,6 +1,6 @@
 #+TITLE: Indoor Localization
-#+DATE: Time-stamp: <2017-08-19 01:11:07 Kyeong Soo (Joseph) Kim>
-#+OPTIONS: toc:t
+#+DATE: Time-stamp: <2017-08-19 10:46:17 Kyeong Soo (Joseph) Kim>
+#+OPTIONS: toc:nil
 #+STARTUP: showall
 
 This is a repository for research on indoor localization based on wireless

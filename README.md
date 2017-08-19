@@ -1,22 +1,11 @@
-- [2017-08-18](#org1a70c57)
-- [2017-08-17](#orgaba5097)
-- [2017-08-15](#org95117ab)
-- [2017-08-14](#org671c1ca)
-- [2017-08-13](#org8c327f8)
-- [2017-08-12](#orgb7f5478)
-
 This is a repository for research on indoor localization based on wireless fingerprinting techniques. For more details, please visit [XJTLU SURF project home page](http://kyeongsoo.github.io/research/projects/indoor_localization/index.html).
 
-
-<a id="org1a70c57"></a>
 
 # 2017-08-18
 
 -   Implement [a multi-label classifier](./python/bf_multi-label_classification.py) to address the issues described on 2017-08-17: 3 building and 5 floor identifiers are [one-hot](https://en.wikipedia.org/wiki/One-hot) encoded into an 8-dimensional vector (e.g., '001|01000') and classified with different class weights (e.g., 30 for buidlings and 1 for floors); the resulting one-hot-encoded vector is split into 3-dimensional building and 5-dimensional floor vectors and the index of a maximum value of each vector is returned as a classified class ([results](./results/bf_multi-label_classification_out_20170819-010852.org)).
     -   Still, need to optimize parameters a lot.
 
-
-<a id="orgaba5097"></a>
 
 # 2017-08-17
 
@@ -25,29 +14,21 @@ This is a repository for research on indoor localization based on wireless finge
     -   One classifier with a weighted loss function<sup><a id="fnr.2" class="footref" href="#fn.2">2</a></sup>. In our case, however, the loss function does not give a closed-form gradient function, which forces us to use evolutionary algorithms (e.g., [genetic algorithm](https://en.wikipedia.org/wiki/Genetic_algorithm)) for training of neural network weights or [multi-label classification with different class weights](https://github.com/fchollet/keras/issues/741) (i.e., higher weights for buildings in our case).
 
 
-<a id="org95117ab"></a>
-
 # 2017-08-15
 
 -   Today, we further simplified the building/floor classification system by removing a hidden layer from the classifier (therefore no dropout), resulting in the configuration of '520-64-4-13' (including input and output layers) with loss=7.050603e-01 and accuracy=9.234923e-01 ([results](./results/indoor_localization_deep_learning_out_20170815-203448.org)). This might mean that the 4-dimensional data from the SAE encoder (64-4) can be linearly separable. Due to training of SAE encoder weights for the combined system, however, it needs further investigation.
 
-
-<a id="org671c1ca"></a>
 
 # 2017-08-14
 
 -   We investigated whether a couple of strong RSSs in a fingerprint dominate the classification performance in building/floor classification. After many trials with different configurations, we could obtain more than 90% accuracies with the stacked-autoencoder (SAE) having 64-4-64 hidden layers (i.e., just 4 dimension) and the classifier having just one 128-node hidden layer ([results](./results/indoor_localization_deep_learning_out_20170814-184009.org)). This implies that a small number of RSSs from access points (APs) deployed in a building/floor can give enough information for the building/floor classification; the localization on the same floor, by the way, would be quite different, where RSSs from possibly many APs have a significant impact on the localization performance.
 
 
-<a id="org8c327f8"></a>
-
 # 2017-08-13
 
 -   We finally obtained [more than 90% accuracies](./results/indoor_localization_deep_learning.org) from [this version](./python/indoor_localization_deep_learning.py), which are comparable to the results of the key paper <sup><a id="fnr.1.100" class="footref" href="#fn.1">1</a></sup> based on the [UJIIndoorLoc Data Set](https://archive.ics.uci.edu/ml/datasets/ujiindoorloc); refer to the [multi-class clarification example](https://keras.io/getting-started/sequential-model-guide/#compilation) for classifier parameter settings.
 -   We [replace the activation functions of the hidden-layer from 'tanh' to 'relu'](./python/indoor_localization-2.ipynb) per the second answer to [this question](https://stats.stackexchange.com/questions/218542/which-activation-function-for-output-layer) ([results](./results/indoor_localization-2_20170813.csv)). Compared to the case with 'tanh', however, the results seem to not improve (a bit in line with the gut-feeling suggestions from [this](https://datascience.stackexchange.com/questions/10048/what-is-the-best-keras-model-for-multi-class-classification)).
 
-
-<a id="orgb7f5478"></a>
 
 # 2017-08-12
 
