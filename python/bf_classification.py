@@ -212,7 +212,7 @@ if __name__ == "__main__":
     print("\nPart 2: buidling a complete model ...")
 
     '''
-    define custom accuracy functions based on the followoign one hot encoding:
+    define custom accuracy functions based on the following one hot encoding:
     0:  00 (1st digit: building, 2nd digit: floor)
     1:  01
     2:  02
