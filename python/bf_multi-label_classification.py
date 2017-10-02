@@ -30,7 +30,6 @@ from timeit import default_timer as timer
 #------------------------------------------------------------------------
 # general
 #------------------------------------------------------------------------
-TRAINING_RATIO = 0.9            # ratio of training data to overall data
 INPUT_DIM = 520
 OUTPUT_DIM = 8                  # number of labels
 VERBOSE = 0                     # 0 for turning off logging
@@ -91,6 +90,12 @@ if __name__ == "__main__":
         default=10,
         type=int)
     parser.add_argument(
+        "-T",
+        "--training_ratio",
+        help="ratio of training data to overall data: default is 0.90",
+        default=0.9,
+        type=float)
+    parser.add_argument(
         "-S",
         "--sae_hidden_layers",
         help=
@@ -130,6 +135,7 @@ if __name__ == "__main__":
     random_seed = args.random_seed
     epochs = args.epochs
     batch_size = args.batch_size
+    training_ratio = args.training_ratio
     sae_hidden_layers = [int(i) for i in (args.sae_hidden_layers).split(',')]
     if args.classifier_hidden_layers == '':
         classifier_hidden_layers = ''
@@ -169,8 +175,8 @@ if __name__ == "__main__":
 
     # generate len(train_AP_features) of floats in between 0 and 1
     train_val_split = np.random.rand(len(train_AP_features))
-    # convert train_val_split to an array of booleans: if elem < TRAINING_RATIO = true, else: false
-    train_val_split = train_val_split < TRAINING_RATIO
+    # convert train_val_split to an array of booleans: if elem < training_ratio = true, else: false
+    train_val_split = train_val_split < training_ratio
 
     # We aren't given a formal testing set, so we will treat the given validation
     # set as the testing set: We will then split our given training set into
@@ -244,11 +250,16 @@ if __name__ == "__main__":
     # acc = np.mean(np.equal(np.argmax(test_labels), np.argmax(preds)).astype(float))
     blds = preds[:, :3]
     blds = np.greater_equal(blds, np.tile(np.amax(blds, axis=1).reshape(n_preds, 1), (1, 3))).astype(int) # set maximum column to 1 and others to 0 (row-wise)
-    acc_bld = np.mean(np.equal(np.argmax(test_labels[:, :3], axis=1), np.argmax(blds, axis=1)).astype(float))
+    blds_results = np.equal(np.argmax(test_labels[:, :3], axis=1), np.argmax(blds, axis=1))
+    acc_bld = np.mean(blds_results.astype(float))
+    # acc_bld = np.mean(np.equal(np.argmax(test_labels[:, :3], axis=1), np.argmax(blds, axis=1)).astype(float))
     flrs = preds[:,3:]
     flrs = np.greater_equal(flrs, np.tile(np.amax(flrs, axis=1).reshape(n_preds,1), (1,5))).astype(int) # set maximum column to 1 and others to 0 (row-wise)
-    acc_flr = np.mean(np.equal(np.argmax(test_labels[:, 3:], axis=1), np.argmax(flrs, axis=1)).astype(float))
-
+    flrs_results = np.equal(np.argmax(test_labels[:, 3:], axis=1), np.argmax(flrs, axis=1))
+    acc_flr = np.mean(flrs_results.astype(float))
+    # acc_flr = np.mean(np.equal(np.argmax(test_labels[:, 3:], axis=1), np.argmax(flrs, axis=1)).astype(float))
+    acc = np.mean(np.equal(blds_results, flrs_results).astype(float))
+    
     ### print out final results
     now = datetime.datetime.now()
     path_out += "_" + now.strftime("%Y%m%d-%H%M%S") + ".org"
@@ -256,7 +267,7 @@ if __name__ == "__main__":
     f.write("#+STARTUP: showall\n")  # unfold everything when opening
     f.write("* System parameters\n")
     f.write("  - Numpy random number seed: %d\n" % random_seed)
-    f.write("  - Ratio of training data to overall data: %.2f\n" % TRAINING_RATIO)
+    f.write("  - Ratio of training data to overall data: %.2f\n" % training_ratio)
     f.write("  - Number of epochs: %d\n" % epochs)
     f.write("  - Batch size: %d\n" % batch_size)
     f.write("  - SAE hidden layers: %d" % sae_hidden_layers[0])
@@ -284,7 +295,7 @@ if __name__ == "__main__":
     f.write("  - Classifier class weight for floors: %.2f\n" % floor_weight)
     f.write("* Performance\n")
     # f.write("  - Loss = %e\n" % loss)
-    # f.write("  - Accuracy (overall) = %e\n" % acc)
+    f.write("  - Accuracy (overall) = %e\n" % acc)
     f.write("  - Accuracy (building) = %e\n" % acc_bld)
     f.write("  - Accuracy (floor) = %e\n" % acc_flr)
     f.close()
