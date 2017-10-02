@@ -1,0 +1,22 @@
+#+STARTUP: showall
+* System parameters
+  - Numpy random number seed: 0
+  - Ratio of training data to overall data: 0.70
+  - Number of epochs: 20
+  - Batch size: 10
+  - SAE hidden layers: 64-8-64
+  - SAE activation: relu
+  - SAE bias: False
+  - SAE optimizer: adam
+  - SAE loss: mse
+  - Classifier hidden layers: N/A
+  - Classifier bias: False
+  - Classifier optimizer: adam
+  - Classifier loss: binary_crossentropy
+  - Classifier dropout rate: 0.20
+  - Classifier class weight for buildings: 2.00
+  - Classifier class weight for floors: 1.00
+* Performance
+  - Accuracy (overall) = 9.063906e-01
+  - Accuracy (building) = 9.918992e-01
+  - Accuracy (floor) = 9.090909e-01
