@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 
 
-train_df = (pd.read_csv('../data/UJIndoorLoc/trainingData2.csv', header=0))[:19930]
+train_df = (pd.read_csv('../data/UJIIndoorLoc/trainingData2.csv', header=0))[:19930]
 
 blds = np.unique(train_df[['BUILDINGID']])
 flrs = np.unique(train_df[['FLOOR']])

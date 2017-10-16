@@ -35,8 +35,8 @@ VERBOSE = 1                     # 0 for turning off logging
 #------------------------------------------------------------------------
 # input files
 #------------------------------------------------------------------------
-path_train = '../data/UJIndoorLoc/trainingData2.csv' # '-110' for the lack of AP.
-path_validation = '../data/UJIndoorLoc/validationData2.csv' # ditto
+path_train = '../data/UJIIndoorLoc/trainingData2.csv' # '-110' for the lack of AP.
+path_validation = '../data/UJIIndoorLoc/validationData2.csv' # ditto
 #------------------------------------------------------------------------
 # output files
 #------------------------------------------------------------------------

@@ -55,8 +55,8 @@ CLASSIFIER_LOSS = 'categorical_crossentropy'
 #------------------------------------------------------------------------
 # input files
 #------------------------------------------------------------------------
-path_train = '../data/UJIndoorLoc/trainingData2.csv' # '-110' for the lack of AP.
-path_validation = '../data/UJIndoorLoc/validationData2.csv' # ditto
+path_train = '../data/UJIIndoorLoc/trainingData2.csv' # '-110' for the lack of AP.
+path_validation = '../data/UJIIndoorLoc/validationData2.csv' # ditto
 #------------------------------------------------------------------------
 # output files
 #------------------------------------------------------------------------
