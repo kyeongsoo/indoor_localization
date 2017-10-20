@@ -256,22 +256,26 @@ if __name__ == "__main__":
     # list all data in history
     print(history.history.keys())
 
-    # summarize history for accuracy
-    plt.plot(history.history['acc'])
-    plt.plot(history.history['val_acc'])
-    plt.title('model accuracy')
-    plt.ylabel('accuracy')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'validation'], loc='upper left')
-    plt.show()
+    # plot accuracy amd loss
+    fig = plt.figure()
+    ax1 = fig.add_subplot(211)
+    ax2 = fig.add_subplot(212)
+
+    ax1.plot(history.history['acc'])
+    ax1.plot(history.history['val_acc'])
+    # ax1.title('model accuracy')
+    ax1.set_xlabel('epoch')
+    ax1.set_ylabel('accuracy')
+    ax1.legend(['train', 'validation'], loc='lower right')
     
-    # summarize history for loss
-    plt.plot(history.history['loss'])
-    plt.plot(history.history['val_loss'])
-    plt.title('model loss')
-    plt.ylabel('loss')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'validation'], loc='upper left')
+    ax2.plot(history.history['loss'])
+    ax2.plot(history.history['val_loss'])
+    # ax2.title('model loss')
+    ax2.set_xlabel('epoch')
+    ax2.set_ylabel('loss')
+    ax2.legend(['train', 'validation'], loc='upper right')
+
+    plt.tight_layout()
     plt.show()
     
     # evaluate the model
