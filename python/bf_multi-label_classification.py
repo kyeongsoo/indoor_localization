@@ -161,7 +161,7 @@ if __name__ == "__main__":
     from keras.layers import Dense, Dropout
     from keras.models import Sequential, load_model
     
-    train_df = pd.read_csv(path_train,header = 0) # pass header=0 to be able to replace existing names 
+    train_df = pd.read_csv(path_train, header=0) # pass header=0 to be able to replace existing names 
     train_df = train_df[:19930]
     train_AP_strengths = train_df.iloc[:,:520] #select first 520 columns
 
@@ -171,7 +171,7 @@ if __name__ == "__main__":
     # build labels
     blds = np.asarray(pd.get_dummies(train_df['BUILDINGID']))
     flrs = np.asarray(pd.get_dummies(train_df['FLOOR']))
-    train_labels = np.concatenate((blds, flrs), axis=1) # labels is an array of 19937 x 8 (3 for BUILDINGID and 5 for FLOOR in one hot encoding
+    train_labels = np.concatenate((blds, flrs), axis=1) # labels is an array of 19937 x 8 (3 for BUILDINGID and 5 for FLOOR in one hot encoding)
 
     # generate len(train_AP_features) of floats in between 0 and 1
     train_val_split = np.random.rand(len(train_AP_features))
@@ -187,7 +187,7 @@ if __name__ == "__main__":
     val_y = train_labels[~train_val_split]
 
     # turn the given validation set into a testing set
-    test_df = pd.read_csv(path_validation,header = 0)
+    test_df = pd.read_csv(path_validation, header=0)
     test_AP_features = scale(np.asarray(test_df.iloc[:,0:520]).astype(float), axis=1) # convert integer to float and scale jointly (axis=1)
 
     blds = np.asarray(pd.get_dummies(test_df['BUILDINGID']))
