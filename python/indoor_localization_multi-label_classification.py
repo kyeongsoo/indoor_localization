@@ -5,8 +5,9 @@
 # @author   Kyeong Soo (Joseph) Kim <kyeongsoo.kim@gmail.com>
 # @date     2017-11-01
 #
-# @brief    Build and evaluate an indoor localization system based on Wi-Fi
-#           fingerprinting using a neural-network-based multi-label classifier.
+# @brief    Build and evaluate a scalable indoor localization system
+#           based on Wi-Fi fingerprinting using a neural-network-based
+#           multi-label classifier.
 #
 # @remarks  This work is based on the <a href="https://keras.io/">Keras</a>-based
 #           implementation of the system described in "<a
@@ -53,8 +54,8 @@ CLASSIFIER_LOSS = 'binary_crossentropy'
 #------------------------------------------------------------------------
 # input files
 #------------------------------------------------------------------------
-path_train = '../data/UJIIndoorLoc/trainingData2.csv' # '-110' for the lack of AP.
-path_validation = '../data/UJIIndoorLoc/validationData2.csv' # ditto
+path_train = '../data/UJIIndoorLoc/trainingData2.csv'           # '-110' for the lack of AP.
+path_validation = '../data/UJIIndoorLoc/validationData2.csv'    # ditto
 #------------------------------------------------------------------------
 # output files
 #------------------------------------------------------------------------
@@ -148,9 +149,9 @@ if __name__ == "__main__":
     ### initialize random seed generator
     np.random.seed(random_seed)
     
-    #------------------------------------------------------------------------
+    #--------------------------------------------------------------------
     # import keras and its backend (e.g., tensorflow)
-    #------------------------------------------------------------------------
+    #--------------------------------------------------------------------
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
     if gpu_id >= 0:
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
@@ -163,11 +164,6 @@ if __name__ == "__main__":
     
     train_df = pd.read_csv(path_train, header=0) # pass header=0 to be able to replace existing names
     train_AP_features = scale(np.asarray(train_df.iloc[:,0:520]).astype(float), axis=1) # convert integer to float and scale jointly (axis=1)
-    # train_df = train_df[:19930]
-    # train_AP_strengths = train_df.iloc[:,:520] #select first 520 columns
-
-    # # scale transforms data to center to the mean and component wise scale to unit variance
-    # train_AP_features = scale(np.asarray(train_AP_strengths).astype(float), axis=1) # convert integer to float and scale jointly (axis=1)
 
     # map space IDs to sequential IDs per building-floor before building labels
     blds = np.unique(train_df[['BUILDINGID']])
@@ -175,7 +171,7 @@ if __name__ == "__main__":
     for bld in blds:
         for flr in flrs:
             cond = (train_df['BUILDINGID']==bld) & (train_df['FLOOR']==flr)
-            _, idx = np.unique(train_df.loc[cond, 'SPACEID'], return_inverse=True)
+            _, idx = np.unique(train_df.loc[cond, 'SPACEID'], return_inverse=True)  # refer to numpy.unique manual
             train_df.loc[cond, 'SPACEID'] = idx
     
     # build labels for multi-label classification
@@ -190,28 +186,14 @@ if __name__ == "__main__":
     # - 91 for SPACEID,
     # - 2 for RELATIVEPOSITION
 
-    # generate len(train_AP_features) of floats in between 0 and 1
-    train_val_split = np.random.rand(len(train_AP_features))
-    # convert train_val_split to an array of booleans: if elem < training_ratio = true, else: false
-    train_val_split = train_val_split < training_ratio
-
-    # We aren't given a formal testing set, so we will treat the given validation
-    # set as the testing set: We will then split our given training set into
-    # training + validation
+    # generate mask index array to split the given training set into training
+    # and validation sets; we will use the given validation set at a testing
+    # set.
+    train_val_split = np.random.rand(len(train_AP_features)) < training_ratio
     train_X = train_AP_features[train_val_split]
     train_y = train_labels[train_val_split]
     val_X = train_AP_features[~train_val_split]
     val_y = train_labels[~train_val_split]
-
-    # turn the given validation set into a testing set
-    test_df = pd.read_csv(path_validation,header = 0)
-    test_AP_features = scale(np.asarray(test_df.iloc[:,0:520]).astype(float), axis=1) # convert integer to float and scale jointly (axis=1)
-
-    blds = np.asarray(pd.get_dummies(test_df['BUILDINGID']))
-    flrs = np.asarray(pd.get_dummies(test_df['FLOOR']))
-    spcs = np.asarray(pd.get_dummies(test_df['SPACEID']))
-    rpss = np.asarray(pd.get_dummies(test_df['RELATIVEPOSITION']))
-    test_labels = np.concatenate((blds, flrs, spcs, rpss), axis=1)
 
     ### build SAE encoder model
     print("\nPart 1: buidling SAE encoder model ...")
@@ -259,62 +241,73 @@ if __name__ == "__main__":
     # train the model
     startTime = timer()
     model.fit(train_X, train_y, validation_data=(val_X, val_y), batch_size=batch_size, epochs=epochs, class_weight=class_weight, verbose=VERBOSE)
-
-    # # evaluate the model
-    # elapsedTime = timer() - startTime
-    # print("Model trained in %e s." % elapsedTime)
-    # # loss, acc, acc_bld, acc_flr = model.evaluate(test_AP_features, test_labels)
-    # preds = model.predict(test_AP_features, batch_size=batch_size)
-    # n_preds = preds.shape[0]
-    # # acc = np.mean(np.equal(np.argmax(test_labels), np.argmax(preds)).astype(float))
-    # blds = preds[:, :3]
-    # blds = np.greater_equal(blds, np.tile(np.amax(blds, axis=1).reshape(n_preds, 1), (1, 3))).astype(int) # set maximum column to 1 and others to 0 (row-wise)
-    # blds_results = np.equal(np.argmax(test_labels[:, :3], axis=1), np.argmax(blds, axis=1))
-    # acc_bld = np.mean(blds_results.astype(float))
-    # # acc_bld = np.mean(np.equal(np.argmax(test_labels[:, :3], axis=1), np.argmax(blds, axis=1)).astype(float))
-    # flrs = preds[:,3:]
-    # flrs = np.greater_equal(flrs, np.tile(np.amax(flrs, axis=1).reshape(n_preds,1), (1,5))).astype(int) # set maximum column to 1 and others to 0 (row-wise)
-    # flrs_results = np.equal(np.argmax(test_labels[:, 3:], axis=1), np.argmax(flrs, axis=1))
-    # acc_flr = np.mean(flrs_results.astype(float))
-    # # acc_flr = np.mean(np.equal(np.argmax(test_labels[:, 3:], axis=1), np.argmax(flrs, axis=1)).astype(float))
-    # acc = np.mean(np.equal(blds_results, flrs_results).astype(float))
+    elapsedTime = timer() - startTime
+    print("Model trained in %e s." % elapsedTime)
     
-    # ### print out final results
-    # now = datetime.datetime.now()
-    # path_out += "_" + now.strftime("%Y%m%d-%H%M%S") + ".org"
-    # f = open(path_out, 'w')
-    # f.write("#+STARTUP: showall\n")  # unfold everything when opening
-    # f.write("* System parameters\n")
-    # f.write("  - Numpy random number seed: %d\n" % random_seed)
-    # f.write("  - Ratio of training data to overall data: %.2f\n" % training_ratio)
-    # f.write("  - Number of epochs: %d\n" % epochs)
-    # f.write("  - Batch size: %d\n" % batch_size)
-    # f.write("  - SAE hidden layers: %d" % sae_hidden_layers[0])
-    # for units in sae_hidden_layers[1:]:
-    #     f.write("-%d" % units)
-    # f.write("\n")
-    # f.write("  - SAE activation: %s\n" % SAE_ACTIVATION)
-    # f.write("  - SAE bias: %s\n" % SAE_BIAS)
-    # f.write("  - SAE optimizer: %s\n" % SAE_OPTIMIZER)
-    # f.write("  - SAE loss: %s\n" % SAE_LOSS)
-    # f.write("  - Classifier hidden layers: ")
-    # if classifier_hidden_layers == '':
-    #     f.write("N/A\n")
-    # else:
-    #     f.write("%d" % classifier_hidden_layers[0])
-    #     for units in classifier_hidden_layers[1:]:
-    #         f.write("-%d" % units)
-    #     f.write("\n")
-    #     f.write("  - Classifier hidden layer activation: %s\n" % CLASSIFIER_ACTIVATION)
-    # f.write("  - Classifier bias: %s\n" % CLASSIFIER_BIAS)
-    # f.write("  - Classifier optimizer: %s\n" % CLASSIFIER_OPTIMIZER)
-    # f.write("  - Classifier loss: %s\n" % CLASSIFIER_LOSS)
-    # f.write("  - Classifier dropout rate: %.2f\n" % dropout)
-    # f.write("  - Classifier class weight for buildings: %.2f\n" % building_weight)
-    # f.write("  - Classifier class weight for floors: %.2f\n" % floor_weight)
-    # f.write("* Performance\n")
-    # # f.write("  - Loss = %e\n" % loss)
-    # f.write("  - Accuracy (overall) = %e\n" % acc)
-    # f.write("  - Accuracy (building) = %e\n" % acc_bld)
-    # f.write("  - Accuracy (floor) = %e\n" % acc_flr)
-    # f.close()
+    # turn the given validation set into a testing set
+    test_df = pd.read_csv(path_validation, header=0)
+    test_AP_features = scale(np.asarray(test_df.iloc[:,0:520]).astype(float), axis=1) # convert integer to float and scale jointly (axis=1)
+    blds = np.asarray(pd.get_dummies(test_df['BUILDINGID']))
+    flrs = np.asarray(pd.get_dummies(test_df['FLOOR']))
+    # spcs = np.asarray(pd.get_dummies(test_df['SPACEID']))
+    # rpss = np.asarray(pd.get_dummies(test_df['RELATIVEPOSITION']))
+    # test_labels = np.concatenate((blds, flrs, spcs, rpss), axis=1)
+    test_labels = np.concatenate((blds, flrs), axis=1)
+
+    # evaluate the model
+    # # loss, acc, acc_bld, acc_flr = model.evaluate(test_AP_features, test_labels)
+    preds = model.predict(test_AP_features, batch_size=batch_size)
+    n_preds = preds.shape[0]
+    # acc = np.mean(np.equal(np.argmax(test_labels), np.argmax(preds)).astype(float))
+    blds = preds[:, :3]
+    blds = np.greater_equal(blds, np.tile(np.amax(blds, axis=1).reshape(n_preds, 1), (1, 3))).astype(int) # set maximum column to 1 and others to 0 (row-wise)
+    blds_results = np.equal(np.argmax(test_labels[:, :3], axis=1), np.argmax(blds, axis=1))
+    acc_bld = np.mean(blds_results.astype(float))
+    # acc_bld = np.mean(np.equal(np.argmax(test_labels[:, :3], axis=1), np.argmax(blds, axis=1)).astype(float))
+    flrs = preds[:,3:8]
+    flrs = np.greater_equal(flrs, np.tile(np.amax(flrs, axis=1).reshape(n_preds,1), (1,5))).astype(int) # set maximum column to 1 and others to 0 (row-wise)
+    flrs_results = np.equal(np.argmax(test_labels[:, 3:8], axis=1), np.argmax(flrs, axis=1))
+    acc_flr = np.mean(flrs_results.astype(float))
+    # acc_flr = np.mean(np.equal(np.argmax(test_labels[:, 3:], axis=1), np.argmax(flrs, axis=1)).astype(float))
+    acc = np.mean(np.equal(blds_results, flrs_results).astype(float))
+    # TODO: calculate positioning error when building and floor are correctly estimated
+    
+    ### print out final results
+    now = datetime.datetime.now()
+    path_out += "_" + now.strftime("%Y%m%d-%H%M%S") + ".org"
+    f = open(path_out, 'w')
+    f.write("#+STARTUP: showall\n")  # unfold everything when opening
+    f.write("* System parameters\n")
+    f.write("  - Numpy random number seed: %d\n" % random_seed)
+    f.write("  - Ratio of training data to overall data: %.2f\n" % training_ratio)
+    f.write("  - Number of epochs: %d\n" % epochs)
+    f.write("  - Batch size: %d\n" % batch_size)
+    f.write("  - SAE hidden layers: %d" % sae_hidden_layers[0])
+    for units in sae_hidden_layers[1:]:
+        f.write("-%d" % units)
+    f.write("\n")
+    f.write("  - SAE activation: %s\n" % SAE_ACTIVATION)
+    f.write("  - SAE bias: %s\n" % SAE_BIAS)
+    f.write("  - SAE optimizer: %s\n" % SAE_OPTIMIZER)
+    f.write("  - SAE loss: %s\n" % SAE_LOSS)
+    f.write("  - Classifier hidden layers: ")
+    if classifier_hidden_layers == '':
+        f.write("N/A\n")
+    else:
+        f.write("%d" % classifier_hidden_layers[0])
+        for units in classifier_hidden_layers[1:]:
+            f.write("-%d" % units)
+        f.write("\n")
+        f.write("  - Classifier hidden layer activation: %s\n" % CLASSIFIER_ACTIVATION)
+    f.write("  - Classifier bias: %s\n" % CLASSIFIER_BIAS)
+    f.write("  - Classifier optimizer: %s\n" % CLASSIFIER_OPTIMIZER)
+    f.write("  - Classifier loss: %s\n" % CLASSIFIER_LOSS)
+    f.write("  - Classifier dropout rate: %.2f\n" % dropout)
+    f.write("  - Classifier class weight for buildings: %.2f\n" % building_weight)
+    f.write("  - Classifier class weight for floors: %.2f\n" % floor_weight)
+    f.write("* Performance\n")
+    # f.write("  - Loss = %e\n" % loss)
+    f.write("  - Accuracy (overall) = %e\n" % acc)
+    f.write("  - Accuracy (building) = %e\n" % acc_bld)
+    f.write("  - Accuracy (floor) = %e\n" % acc_flr)
+    f.close()
