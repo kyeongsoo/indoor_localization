@@ -20,6 +20,7 @@
 import argparse
 import datetime
 import os
+import math
 import numpy as np
 import pandas as pd
 import sys
@@ -107,8 +108,8 @@ if __name__ == "__main__":
         "-C",
         "--classifier_hidden_layers",
         help=
-        "comma-separated numbers of units in classifier hidden layers; default '' (i.e., no hidden layer)",
-        default='',
+        "comma-separated numbers of units in classifier hidden layers; default is '128,128'",
+        default='128,128',
         type=str)
     parser.add_argument(
         "-D",
@@ -120,8 +121,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--building_weight",
         help=
-        "weight for building classes in classifier; default 10.0",
-        default=10.0,
+        "weight for building classes in classifier; default 1.0",
+        default=1.0,
         type=float)
     parser.add_argument(
         "--floor_weight",
@@ -186,17 +187,16 @@ if __name__ == "__main__":
     # - 91 for SPACEID,
     # - 2 for RELATIVEPOSITION
 
-    # generate mask index array to split the given training set into training
-    # and validation sets; we will use the given validation set at a testing
-    # set.
-    train_val_split = np.random.rand(len(train_AP_features)) < training_ratio
+    # split the training set into training and validation sets; we will use the
+    # validation set at a testing set.
+    train_val_split = np.random.rand(len(train_AP_features)) < training_ratio # mask index array
     train_X = train_AP_features[train_val_split]
     train_y = train_labels[train_val_split]
     val_X = train_AP_features[~train_val_split]
     val_y = train_labels[~train_val_split]
 
     ### build SAE encoder model
-    print("\nPart 1: buidling SAE encoder model ...")
+    print("\nPart 1: buidling an SAE encoder ...")
     if False:
     # if os.path.isfile(path_sae_model) and (os.path.getmtime(path_sae_model) > os.path.getmtime(__file__)):
         model = load_model(path_sae_model)
@@ -224,7 +224,7 @@ if __name__ == "__main__":
         # save the model for later use
         model.save(path_sae_model)
 
-    ### build and evaluate a complete model with the trained SAE encoder and a new classifier
+    ### build and train a complete model with the trained SAE encoder and a new classifier
     print("\nPart 2: buidling a complete model ...")
     # append a classifier to the model
     class_weight = {
@@ -247,6 +247,8 @@ if __name__ == "__main__":
     # turn the given validation set into a testing set
     test_df = pd.read_csv(path_validation, header=0)
     test_AP_features = scale(np.asarray(test_df.iloc[:,0:520]).astype(float), axis=1) # convert integer to float and scale jointly (axis=1)
+    test_utm_x = np.asarray(test_df['LONGITUDE'])
+    test_utm_y = np.asarray(test_df['LATITUDE'])
     blds = np.asarray(pd.get_dummies(test_df['BUILDINGID']))
     flrs = np.asarray(pd.get_dummies(test_df['FLOOR']))
     # spcs = np.asarray(pd.get_dummies(test_df['SPACEID']))
@@ -254,24 +256,53 @@ if __name__ == "__main__":
     # test_labels = np.concatenate((blds, flrs, spcs, rpss), axis=1)
     test_labels = np.concatenate((blds, flrs), axis=1)
 
-    # evaluate the model
+    ### evaluate the model
+    print("\nPart 3: evaluating the model ...")
+    # calculate the accuracy of building and floor estimation
     # # loss, acc, acc_bld, acc_flr = model.evaluate(test_AP_features, test_labels)
     preds = model.predict(test_AP_features, batch_size=batch_size)
     n_preds = preds.shape[0]
     # acc = np.mean(np.equal(np.argmax(test_labels), np.argmax(preds)).astype(float))
     blds = preds[:, :3]
-    blds = np.greater_equal(blds, np.tile(np.amax(blds, axis=1).reshape(n_preds, 1), (1, 3))).astype(int) # set maximum column to 1 and others to 0 (row-wise)
+    # blds = np.greater_equal(blds, np.tile(np.amax(blds, axis=1).reshape(n_preds, 1), (1, 3))).astype(int) # set maximum column to 1 and others to 0 (row-wise)
     blds_results = np.equal(np.argmax(test_labels[:, :3], axis=1), np.argmax(blds, axis=1))
     acc_bld = np.mean(blds_results.astype(float))
     # acc_bld = np.mean(np.equal(np.argmax(test_labels[:, :3], axis=1), np.argmax(blds, axis=1)).astype(float))
     flrs = preds[:,3:8]
-    flrs = np.greater_equal(flrs, np.tile(np.amax(flrs, axis=1).reshape(n_preds,1), (1,5))).astype(int) # set maximum column to 1 and others to 0 (row-wise)
+    # flrs = np.greater_equal(flrs, np.tile(np.amax(flrs, axis=1).reshape(n_preds,1), (1,5))).astype(int) # set maximum column to 1 and others to 0 (row-wise)
     flrs_results = np.equal(np.argmax(test_labels[:, 3:8], axis=1), np.argmax(flrs, axis=1))
     acc_flr = np.mean(flrs_results.astype(float))
-    # acc_flr = np.mean(np.equal(np.argmax(test_labels[:, 3:], axis=1), np.argmax(flrs, axis=1)).astype(float))
+    # acc_flr = np.mean(np.equal(np.argmax(test_labels[:, 3:8], axis=1), np.argmax(flrs, axis=1)).astype(float))
     acc = np.mean(np.equal(blds_results, flrs_results).astype(float))
-    # TODO: calculate positioning error when building and floor are correctly estimated
-    
+
+    # calculate positioning error when building and floor are correctly estimated
+    mask = np.logical_and(blds_results, flrs_results) # mask index array for correct location of building and floor
+    test_utm_x = test_utm_x[mask]
+    test_utm_y = test_utm_y[mask]
+    blds = blds[mask]
+    flrs = flrs[mask]
+    spcs = (preds[mask])[:,8:99]
+    rpss = (preds[mask])[:,99:101]
+
+    n_success = len(blds)       # number of correct building and floor location
+    blds = np.greater_equal(blds, np.tile(np.amax(blds, axis=1).reshape(n_success, 1), (1, 3))).astype(int) # set maximum column to 1 and others to 0 (row-wise)
+    flrs = np.greater_equal(flrs, np.tile(np.amax(flrs, axis=1).reshape(n_success, 1), (1, 5))).astype(int)
+    spcs = np.greater_equal(spcs, np.tile(np.amax(spcs, axis=1).reshape(n_success, 1), (1, 91))).astype(int)
+    rpss = np.greater_equal(rpss, np.tile(np.amax(rpss, axis=1).reshape(n_success, 1), (1, 2))).astype(int)
+    preds_labels = np.concatenate((blds, flrs, spcs, rpss), axis=1)
+    n_loc_failure = 0
+    sum_pos_err = 0.0
+    for i in range(n_success):
+        idx = np.where((train_labels == preds_labels[i]).all(axis=1)) # tuple of indexes
+        if idx[0].size > 0:
+            x = train_df.iloc[idx[0][0], 520] # LONGITUDE
+            y = train_df.iloc[idx[0][0], 521] # LATITUDE
+            sum_pos_err += math.sqrt((x-test_utm_x[i])**2 + (y-test_utm_y[i])**2)
+        else:
+            n_loc_failure += 1
+    mean_pos_err = sum_pos_err / (n_success - n_loc_failure)
+    loc_failure = n_loc_failure / n_success # rate of location estimation failure given that building and floor are correctly located
+
     ### print out final results
     now = datetime.datetime.now()
     path_out += "_" + now.strftime("%Y%m%d-%H%M%S") + ".org"
@@ -307,7 +338,9 @@ if __name__ == "__main__":
     f.write("  - Classifier class weight for floors: %.2f\n" % floor_weight)
     f.write("* Performance\n")
     # f.write("  - Loss = %e\n" % loss)
-    f.write("  - Accuracy (overall) = %e\n" % acc)
-    f.write("  - Accuracy (building) = %e\n" % acc_bld)
-    f.write("  - Accuracy (floor) = %e\n" % acc_flr)
+    f.write("  - Accuracy (building): %e\n" % acc_bld)
+    f.write("  - Accuracy (floor): %e\n" % acc_flr)
+    f.write("  - Success rate (building-floor): %e\n" % acc)
+    f.write("  - Location estimation failure rate (given the correct building/floor): %e\n" % loc_failure)
+    f.write("  - Positioning error (meter): %e\n" % mean_pos_err)
     f.close()
