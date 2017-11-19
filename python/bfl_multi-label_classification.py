@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##
-# @file     scalable_indoor_localization.py
+# @file     bfl_multi-label_classification.py
 # @author   Kyeong Soo (Joseph) Kim <kyeongsoo.kim@gmail.com>
-# @date     2017-11-15
+# @date     2017-11-16
 #
 # @brief    Build and evaluate a scalable indoor localization system
-#           based on Wi-Fi fingerprinting using a neural-network-based
-#           multi-label classifier.
+#           (up to reference points) based on Wi-Fi fingerprinting
+#           using a neural-network-based multi-label classifier.
 #
 # @remarks  This work is based on the <a href="https://keras.io/">Keras</a>-based
 #           implementation of the system described in "<a
@@ -46,14 +46,16 @@ SAE_LOSS = 'mse'
 # classifier
 #------------------------------------------------------------------------
 CLASSIFIER_ACTIVATION = 'relu'
+#CLASSIFIER_ACTIVATION = 'tanh'
 CLASSIFIER_BIAS = False
 CLASSIFIER_OPTIMIZER = 'adam'
+# CLASSIFIER_OPTIMIZER = 'rmsprop'
 CLASSIFIER_LOSS = 'binary_crossentropy'
 #------------------------------------------------------------------------
 # input files
 #------------------------------------------------------------------------
 path_train = '../data/UJIIndoorLoc/trainingData2.csv'           # '-110' for the lack of AP.
-path_validation = '../data/UJIIndoorLoc/validationData2.csv'    # ditto
+# path_validation = '../data/UJIIndoorLoc/validationData2.csv'    # ditto
 #------------------------------------------------------------------------
 # output files
 #------------------------------------------------------------------------
@@ -90,10 +92,10 @@ if __name__ == "__main__":
         type=int)
     parser.add_argument(
         "-T",
-        "--training_ratio",
-        help="ratio of training data to overall data: default is 0.90",
-        default=0.9,
-        type=float)
+        "--training_validation_test_ratio",
+        help="comma-separated ratio of training, validation, and test data to the overall data: default is '7,2,1'",
+        default='7,2,1',
+        type=str)
     parser.add_argument(
         "-S",
         "--sae_hidden_layers",
@@ -129,16 +131,10 @@ if __name__ == "__main__":
     #     type=float)
     parser.add_argument(
         "-N",
-        "--neighbours",
-        help="number of (nearest) neighbour locations to consider in positioning; default is 1",
+        "--nearest_neighbours",
+        help="number of nearest locations; default is 1",
         default=1,
         type=int)
-    parser.add_argument(
-        "--scaling",
-        help=
-        "scaling factor for threshold (i.e., threshold=scaling*maximum) for the inclusion of nighbour locations to consider in positioning; default is 0.0",
-        default=0.0,
-        type=float)
     args = parser.parse_args()
 
     # set variables using command-line arguments
@@ -146,7 +142,8 @@ if __name__ == "__main__":
     random_seed = args.random_seed
     epochs = args.epochs
     batch_size = args.batch_size
-    training_ratio = args.training_ratio
+    training_validation_test_ratio = np.array([float(i) for i in (args.training_validation_test_ratio).split(',')])
+    training_validation_test_ratio /= sum(training_validation_test_ratio)
     sae_hidden_layers = [int(i) for i in (args.sae_hidden_layers).split(',')]
     if args.classifier_hidden_layers == '':
         classifier_hidden_layers = ''
@@ -155,10 +152,9 @@ if __name__ == "__main__":
     dropout = args.dropout
     # building_weight = args.building_weight
     # floor_weight = args.floor_weight
-    N = args.neighbours
-    scaling = args.scaling
+    nearest_neighbours = args.nearest_neighbours
 
-    ### initialize random seed generator of numpy
+    ### initialize random seed generator
     np.random.seed(random_seed)
     
     #--------------------------------------------------------------------
@@ -171,7 +167,6 @@ if __name__ == "__main__":
         os.environ["CUDA_VISIBLE_DEVICES"] = ''
     os.environ['TF_CPP_MIN_LOG_LEVEL']='2'  # supress warning messages
     import tensorflow as tf
-    tf.set_random_seed(random_seed)  # initialize random seed generator of tensorflow
     from keras.layers import Dense, Dropout
     from keras.models import Sequential, load_model
     
@@ -193,19 +188,23 @@ if __name__ == "__main__":
     flrs = np.asarray(pd.get_dummies(train_df['FLOOR']))
     rfps = np.asarray(pd.get_dummies(train_df['REFPOINT']))
     train_labels = np.concatenate((blds, flrs, rfps), axis=1)
-    # labels is an array of 19937 x 101
+    # labels is an array of 19937 x 118
     # - 3 for BUILDINGID
     # - 5 for FLOOR,
     # - 110 for REFPOINT
     OUTPUT_DIM = train_labels.shape[1]
     
-    # split the training set into training and validation sets; we will use the
-    # validation set at a testing set.
-    train_val_split = np.random.rand(len(train_AP_features)) < training_ratio # mask index array
-    x_train = train_AP_features[train_val_split]
-    y_train = train_labels[train_val_split]
-    x_val = train_AP_features[~train_val_split]
-    y_val = train_labels[~train_val_split]
+    # split the training set into training, validation, and test sets
+    train_mask = np.random.rand(len(train_labels)) < training_validation_test_ratio[0] # mask index array
+    x_train = train_AP_features[train_mask]
+    y_train = train_labels[train_mask]
+    x_tmp = train_AP_features[~train_mask]
+    y_tmp = train_labels[~train_mask]
+    val_mask = np.random.rand(len(y_tmp)) < training_validation_test_ratio[1] / sum(training_validation_test_ratio[1:]) # mask index array
+    x_val = x_tmp[val_mask]
+    y_val = y_tmp[val_mask]
+    test_AP_features = x_tmp[~val_mask]
+    test_labels = y_tmp[~val_mask]
 
     ### build SAE encoder model
     print("\nPart 1: buidling an SAE encoder ...")
@@ -253,21 +252,21 @@ if __name__ == "__main__":
     # train the model
     startTime = timer()
     model.fit(x_train, y_train, validation_data=(x_val, y_val), batch_size=batch_size, epochs=epochs, verbose=VERBOSE)
-    # model.fit(x_train, y_train, validation_data=(x_val, y_val), batch_size=batch_size, epochs=epochs, class_weight=class_weight, verbose=VERBOSE)
+    # model.fit(x_train, y_train, validation_data=(val_X, val_y), batch_size=batch_size, epochs=epochs, class_weight=class_weight, verbose=VERBOSE)
     elapsedTime = timer() - startTime
     print("Model trained in %e s." % elapsedTime)
     
-    # turn the given validation set into a testing set
-    test_df = pd.read_csv(path_validation, header=0)
-    test_AP_features = scale(np.asarray(test_df.iloc[:,0:520]).astype(float), axis=1) # convert integer to float and scale jointly (axis=1)
-    x_test_utm = np.asarray(test_df['LONGITUDE'])
-    y_test_utm = np.asarray(test_df['LATITUDE'])
-    blds = np.asarray(pd.get_dummies(test_df['BUILDINGID']))
-    flrs = np.asarray(pd.get_dummies(test_df['FLOOR']))
-    # spcs = np.asarray(pd.get_dummies(test_df['SPACEID']))
-    # rpss = np.asarray(pd.get_dummies(test_df['RELATIVEPOSITION']))
-    # test_labels = np.concatenate((blds, flrs, spcs, rpss), axis=1)
-    test_labels = np.concatenate((blds, flrs), axis=1)
+    # # turn the given validation set into a testing set
+    # test_df = pd.read_csv(path_validation, header=0)
+    # test_AP_features = scale(np.asarray(test_df.iloc[:,0:520]).astype(float), axis=1) # convert integer to float and scale jointly (axis=1)
+    # test_utm_x = np.asarray(test_df['LONGITUDE'])
+    # test_utm_y = np.asarray(test_df['LATITUDE'])
+    # blds = np.asarray(pd.get_dummies(test_df['BUILDINGID']))
+    # flrs = np.asarray(pd.get_dummies(test_df['FLOOR']))
+    # # spcs = np.asarray(pd.get_dummies(test_df['SPACEID']))
+    # # rpss = np.asarray(pd.get_dummies(test_df['RELATIVEPOSITION']))
+    # # test_labels = np.concatenate((blds, flrs, spcs, rpss), axis=1)
+    # test_labels = np.concatenate((blds, flrs), axis=1)
 
     ### evaluate the model
     print("\nPart 3: evaluating the model ...")
@@ -280,48 +279,9 @@ if __name__ == "__main__":
     flrs_results = (np.equal(np.argmax(test_labels[:, 3:8], axis=1), np.argmax(preds[:, 3:8], axis=1))).astype(int)
     acc_flr = flrs_results.mean()
     acc_bf = (blds_results*flrs_results).mean()
-    # rfps_results = (np.equal(np.argmax(test_labels[:, 8:118], axis=1), np.argmax(preds[:, 8:118], axis=1))).astype(int)
-    # acc_rfp = rfps_results.mean()
-    # acc = (blds_results*flrs_results*rfps_results).mean()
-    
-    # calculate positioning error when building and floor are correctly estimated
-    mask = np.logical_and(blds_results, flrs_results) # mask index array for correct location of building and floor
-    x_test_utm = x_test_utm[mask]
-    y_test_utm = y_test_utm[mask]
-    blds = blds[mask]
-    flrs = flrs[mask]
-    rfps = (preds[mask])[:, 8:118]
-
-    n_success = len(blds)       # number of correct building and floor location
-    blds = np.greater_equal(blds, np.tile(np.amax(blds, axis=1).reshape(n_success, 1), (1, 3))).astype(int) # set maximum column to 1 and others to 0 (row-wise)
-    flrs = np.greater_equal(flrs, np.tile(np.amax(flrs, axis=1).reshape(n_success, 1), (1, 5))).astype(int) # ditto
-
-    n_loc_failure = 0
-    sum_pos_err = 0.0
-    sum_pos_err_weighted = 0.0
-    idxs = np.argpartition(rfps, -N)[:, -N:]  # (unsorted) indexes of up to N nearest neighbors
-    threshold = scaling*np.amax(rfps, axis=1)
-    for i in range(n_success):
-        xs = []
-        ys = []
-        ws = []
-        for j in idxs[i]:
-            rfp = np.zeros(110)
-            rfp[j] = 1
-            rows = np.where((train_labels == np.concatenate((blds[i], flrs[i], rfp))).all(axis=1)) # tuple of row indexes
-            if rows[0].size > 0:
-                if rfps[i][j] >= threshold[i]:
-                    xs.append(train_df.iloc[rows[0][0], 520])  # LONGITUDE
-                    ys.append(train_df.iloc[rows[0][0], 521])  # LATITUDE
-                    ws.append(rfps[i][j])
-        if len(xs) > 0:
-            sum_pos_err += math.sqrt((np.mean(xs)-x_test_utm[i])**2 + (np.mean(ys)-y_test_utm[i])**2)
-            sum_pos_err_weighted += math.sqrt((np.average(xs, weights=ws)-x_test_utm[i])**2 + (np.average(ys, weights=ws)-y_test_utm[i])**2)
-        else:
-            n_loc_failure += 1
-    mean_pos_err = sum_pos_err / (n_success - n_loc_failure)
-    mean_pos_err_weighted = sum_pos_err_weighted / (n_success - n_loc_failure)
-    loc_failure = n_loc_failure / n_success # rate of location estimation failure given that building and floor are correctly located
+    rfps_results = (np.equal(np.argmax(test_labels[:, 8:118], axis=1), np.argmax(preds[:, 8:118], axis=1))).astype(int)
+    acc_rfp = rfps_results.mean()
+    acc = (blds_results*flrs_results*rfps_results).mean()
 
     ### print out final results
     now = datetime.datetime.now()
@@ -330,11 +290,11 @@ if __name__ == "__main__":
     f.write("#+STARTUP: showall\n")  # unfold everything when opening
     f.write("* System parameters\n")
     f.write("  - Numpy random number seed: %d\n" % random_seed)
-    f.write("  - Ratio of training data to overall data: %.2f\n" % training_ratio)
+    f.write("  - Ratio of training data to overall data: %.2f\n" % training_validation_test_ratio[0])
+    f.write("  - Ratio of validation data to overall data: %.2f\n" % training_validation_test_ratio[1])
+    f.write("  - Ratio of test data to overall data: %.2f\n" % training_validation_test_ratio[2])
     f.write("  - Number of epochs: %d\n" % epochs)
     f.write("  - Batch size: %d\n" % batch_size)
-    f.write("  - Number of neighbours: %d\n" % N)
-    f.write("  - Scaling factor for threshold: %.2f\n" % scaling)
     f.write("  - SAE hidden layers: %d" % sae_hidden_layers[0])
     for units in sae_hidden_layers[1:]:
         f.write("-%d" % units)
@@ -359,10 +319,10 @@ if __name__ == "__main__":
     # f.write("  - Classifier class weight for buildings: %.2f\n" % building_weight)
     # f.write("  - Classifier class weight for floors: %.2f\n" % floor_weight)
     f.write("* Performance\n")
+    # f.write("  - Loss = %e\n" % loss)
     f.write("  - Accuracy (building): %e\n" % acc_bld)
     f.write("  - Accuracy (floor): %e\n" % acc_flr)
     f.write("  - Accuracy (building-floor): %e\n" % acc_bf)
-    f.write("  - Location estimation failure rate (given the correct building/floor): %e\n" % loc_failure)
-    f.write("  - Positioning error (meter): %e\n" % mean_pos_err)
-    f.write("  - Positioning error (weighted; meter): %e\n" % mean_pos_err_weighted)
+    f.write("  - Accuracy (location): %e\n" % acc_rfp)
+    f.write("  - Accuracy (overall): %e\n" % acc)
     f.close()

@@ -165,10 +165,10 @@ if __name__ == "__main__":
     # We aren't given a formal testing set, so we will treat the given validation
     # set as the testing set: We will then split our given training set into
     # training + validation
-    train_X = train_AP_features[train_val_split]
-    train_y = train_labels[train_val_split]
-    val_X = train_AP_features[~train_val_split]
-    val_y = train_labels[~train_val_split]
+    x_train = train_AP_features[train_val_split]
+    y_train = train_labels[train_val_split]
+    x_val = train_AP_features[~train_val_split]
+    y_val = train_labels[~train_val_split]
 
     # turn the given validation set into a testing set
     test_df = pd.read_csv(path_validation,header = 0)
@@ -191,7 +191,7 @@ if __name__ == "__main__":
         model.compile(optimizer=sae_optimizer, loss=sae_loss)
 
         # train the model
-        model.fit(train_X, train_X, batch_size=batch_size, epochs=epochs, verbose=verbose)
+        model.fit(x_train, x_train, batch_size=batch_size, epochs=epochs, verbose=verbose)
 
         # remove the decoder part
         num_to_remove = (len(sae_hidden_layers) + 1) // 2
@@ -218,7 +218,7 @@ if __name__ == "__main__":
 
     # train the model
     startTime = timer()
-    model.fit(train_X, train_y, validation_data=(val_X, val_y), batch_size=batch_size, epochs=epochs, verbose=verbose)
+    model.fit(x_train, y_train, validation_data=(x_val, y_val), batch_size=batch_size, epochs=epochs, verbose=verbose)
 
     # evaluate the model
     elapsedTime = timer() - startTime

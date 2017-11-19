@@ -46,8 +46,10 @@ SAE_LOSS = 'mse'
 # classifier
 #------------------------------------------------------------------------
 CLASSIFIER_ACTIVATION = 'relu'
+#CLASSIFIER_ACTIVATION = 'tanh'
 CLASSIFIER_BIAS = False
 CLASSIFIER_OPTIMIZER = 'adam'
+# CLASSIFIER_OPTIMIZER = 'rmsprop'
 CLASSIFIER_LOSS = 'binary_crossentropy'
 #------------------------------------------------------------------------
 # input files
@@ -134,9 +136,10 @@ if __name__ == "__main__":
         default=1,
         type=int)
     parser.add_argument(
-        "--scaling",
+        "-H",
+        "--threshold",
         help=
-        "scaling factor for threshold (i.e., threshold=scaling*maximum) for the inclusion of nighbour locations to consider in positioning; default is 0.0",
+        "threshold for the inclusion of nighbour locations to consider in positioning; default 0.0",
         default=0.0,
         type=float)
     args = parser.parse_args()
@@ -156,9 +159,9 @@ if __name__ == "__main__":
     # building_weight = args.building_weight
     # floor_weight = args.floor_weight
     N = args.neighbours
-    scaling = args.scaling
+    threshold = args.threshold
 
-    ### initialize random seed generator of numpy
+    ### initialize random seed generator
     np.random.seed(random_seed)
     
     #--------------------------------------------------------------------
@@ -171,7 +174,6 @@ if __name__ == "__main__":
         os.environ["CUDA_VISIBLE_DEVICES"] = ''
     os.environ['TF_CPP_MIN_LOG_LEVEL']='2'  # supress warning messages
     import tensorflow as tf
-    tf.set_random_seed(random_seed)  # initialize random seed generator of tensorflow
     from keras.layers import Dense, Dropout
     from keras.models import Sequential, load_model
     
@@ -298,29 +300,36 @@ if __name__ == "__main__":
 
     n_loc_failure = 0
     sum_pos_err = 0.0
-    sum_pos_err_weighted = 0.0
-    idxs = np.argpartition(rfps, -N)[:, -N:]  # (unsorted) indexes of up to N nearest neighbors
-    threshold = scaling*np.amax(rfps, axis=1)
     for i in range(n_success):
+        idxs = np.argpartition(rfps[i], -N)[-N:] # (unsorted) indexes of up to N nearest neighbors 
+        # rfps = np.greater_equal(
+        #     rfps,
+        #     np.tile(np.amax(rfps, axis=1).reshape(n_success, 1), (1, 110))
+        # ).astype(int) # TODO: consider up to k reference points (optionally, with the predicted values as weights)
+        # x_sum = 0.0
+        # y_sum = 0.0
         xs = []
         ys = []
         ws = []
-        for j in idxs[i]:
+        # n_nbrs = 0
+        for j in idxs:
             rfp = np.zeros(110)
             rfp[j] = 1
             rows = np.where((train_labels == np.concatenate((blds[i], flrs[i], rfp))).all(axis=1)) # tuple of row indexes
             if rows[0].size > 0:
-                if rfps[i][j] >= threshold[i]:
-                    xs.append(train_df.iloc[rows[0][0], 520])  # LONGITUDE
-                    ys.append(train_df.iloc[rows[0][0], 521])  # LATITUDE
-                    ws.append(rfps[i][j])
+                xs.append(train_df.iloc[rows[0][0], 520])  # LONGITUDE
+                ys.append(train_df.iloc[rows[0][0], 521])  # LATITUDE
+                ws.append(rfps[i][j])
+                # x_sum += train_df.iloc[rows[0][0], 520] # LONGITUDE
+                # y_sum += train_df.iloc[rows[0][0], 521] # LATITUDE
+                # n_nbrs += 1
+        # if n_nbrs > 0:
         if len(xs) > 0:
-            sum_pos_err += math.sqrt((np.mean(xs)-x_test_utm[i])**2 + (np.mean(ys)-y_test_utm[i])**2)
-            sum_pos_err_weighted += math.sqrt((np.average(xs, weights=ws)-x_test_utm[i])**2 + (np.average(ys, weights=ws)-y_test_utm[i])**2)
+            sum_pos_err += math.sqrt((np.average(xs, weights=ws)-x_test_utm[i])**2 + (np.average(ys, weights=ws)-y_test_utm[i])**2)
+            # sum_pos_err += math.sqrt(((x_sum/n_nbrs)-x_test_utm[i])**2 + ((y_sum/n_nbrs)-y_test_utm[i])**2)
         else:
             n_loc_failure += 1
     mean_pos_err = sum_pos_err / (n_success - n_loc_failure)
-    mean_pos_err_weighted = sum_pos_err_weighted / (n_success - n_loc_failure)
     loc_failure = n_loc_failure / n_success # rate of location estimation failure given that building and floor are correctly located
 
     ### print out final results
@@ -334,7 +343,6 @@ if __name__ == "__main__":
     f.write("  - Number of epochs: %d\n" % epochs)
     f.write("  - Batch size: %d\n" % batch_size)
     f.write("  - Number of neighbours: %d\n" % N)
-    f.write("  - Scaling factor for threshold: %.2f\n" % scaling)
     f.write("  - SAE hidden layers: %d" % sae_hidden_layers[0])
     for units in sae_hidden_layers[1:]:
         f.write("-%d" % units)
@@ -359,10 +367,10 @@ if __name__ == "__main__":
     # f.write("  - Classifier class weight for buildings: %.2f\n" % building_weight)
     # f.write("  - Classifier class weight for floors: %.2f\n" % floor_weight)
     f.write("* Performance\n")
+    # f.write("  - Loss = %e\n" % loss)
     f.write("  - Accuracy (building): %e\n" % acc_bld)
     f.write("  - Accuracy (floor): %e\n" % acc_flr)
     f.write("  - Accuracy (building-floor): %e\n" % acc_bf)
     f.write("  - Location estimation failure rate (given the correct building/floor): %e\n" % loc_failure)
     f.write("  - Positioning error (meter): %e\n" % mean_pos_err)
-    f.write("  - Positioning error (weighted; meter): %e\n" % mean_pos_err_weighted)
     f.close()
