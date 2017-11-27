@@ -193,7 +193,7 @@ if __name__ == "__main__":
     flrs = np.asarray(pd.get_dummies(train_df['FLOOR']))
     rfps = np.asarray(pd.get_dummies(train_df['REFPOINT']))
     train_labels = np.concatenate((blds, flrs, rfps), axis=1)
-    # labels is an array of 19937 x 101
+    # labels is an array of 19937 x 118
     # - 3 for BUILDINGID
     # - 5 for FLOOR,
     # - 110 for REFPOINT
