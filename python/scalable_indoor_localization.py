@@ -174,23 +174,37 @@ if __name__ == "__main__":
     tf.set_random_seed(random_seed)  # initialize random seed generator of tensorflow
     from keras.layers import Dense, Dropout
     from keras.models import Sequential, load_model
-    
+
+    # read both train and test dataframes for consistent label formation through one-hot encoding
     train_df = pd.read_csv(path_train, header=0) # pass header=0 to be able to replace existing names
+    test_df = pd.read_csv(path_validation, header=0)
+    
     train_AP_features = scale(np.asarray(train_df.iloc[:,0:520]).astype(float), axis=1) # convert integer to float and scale jointly (axis=1)
     train_df['REFPOINT'] = train_df.apply(lambda row: str(int(row['SPACEID'])) + str(int(row['RELATIVEPOSITION'])), axis=1) # add a new column
     
-    # map reference points to sequential IDs per building-floor before building labels
     blds = np.unique(train_df[['BUILDINGID']])
-    flrs = np.unique(train_df[['FLOOR']])    
+    flrs = np.unique(train_df[['FLOOR']])
+    x_avg = {}
+    y_avg = {}
     for bld in blds:
         for flr in flrs:
+            # map reference points to sequential IDs per building-floor before building labels
             cond = (train_df['BUILDINGID']==bld) & (train_df['FLOOR']==flr)
             _, idx = np.unique(train_df.loc[cond, 'REFPOINT'], return_inverse=True) # refer to numpy.unique manual
             train_df.loc[cond, 'REFPOINT'] = idx
+            
+            # calculate the average coordinates of each building/floor
+            x_avg[str(bld) + '-' + str(flr)] = np.mean(train_df.loc[cond, 'LONGITUDE'])
+            y_avg[str(bld) + '-' + str(flr)] = np.mean(train_df.loc[cond, 'LATITUDE'])
     
     # build labels for multi-label classification
-    blds = np.asarray(pd.get_dummies(train_df['BUILDINGID']))
-    flrs = np.asarray(pd.get_dummies(train_df['FLOOR']))
+    len_train = len(train_df)
+    blds_all = np.asarray(pd.get_dummies(pd.concat([train_df['BUILDINGID'], test_df['BUILDINGID']]))) # for consistency in one-hot encoding for both dataframes
+    flrs_all = np.asarray(pd.get_dummies(pd.concat([train_df['FLOOR'], test_df['FLOOR']]))) # ditto
+    blds = blds_all[:len_train]
+    flrs = flrs_all[:len_train]
+    # blds = np.asarray(pd.get_dummies(train_df['BUILDINGID']))
+    # flrs = np.asarray(pd.get_dummies(train_df['FLOOR']))
     rfps = np.asarray(pd.get_dummies(train_df['REFPOINT']))
     train_labels = np.concatenate((blds, flrs, rfps), axis=1)
     # labels is an array of 19937 x 118
@@ -258,16 +272,14 @@ if __name__ == "__main__":
     print("Model trained in %e s." % elapsedTime)
     
     # turn the given validation set into a testing set
-    test_df = pd.read_csv(path_validation, header=0)
+    # test_df = pd.read_csv(path_validation, header=0)
     test_AP_features = scale(np.asarray(test_df.iloc[:,0:520]).astype(float), axis=1) # convert integer to float and scale jointly (axis=1)
     x_test_utm = np.asarray(test_df['LONGITUDE'])
     y_test_utm = np.asarray(test_df['LATITUDE'])
-    blds = np.asarray(pd.get_dummies(test_df['BUILDINGID']))
-    flrs = np.asarray(pd.get_dummies(test_df['FLOOR']))
-    # spcs = np.asarray(pd.get_dummies(test_df['SPACEID']))
-    # rpss = np.asarray(pd.get_dummies(test_df['RELATIVEPOSITION']))
-    # test_labels = np.concatenate((blds, flrs, spcs, rpss), axis=1)
-    test_labels = np.concatenate((blds, flrs), axis=1)
+    # blds = np.asarray(pd.get_dummies(test_df['BUILDINGID']))
+    blds = blds_all[len_train:]
+    # flrs = np.asarray(pd.get_dummies(test_df['FLOOR']))
+    flrs = flrs_all[len_train:]
 
     ### evaluate the model
     print("\nPart 3: evaluating the model ...")
@@ -275,9 +287,11 @@ if __name__ == "__main__":
     # calculate the accuracy of building and floor estimation
     preds = model.predict(test_AP_features, batch_size=batch_size)
     n_preds = preds.shape[0]
-    blds_results = (np.equal(np.argmax(test_labels[:, :3], axis=1), np.argmax(preds[:, :3], axis=1))).astype(int)
+    # blds_results = (np.equal(np.argmax(test_labels[:, :3], axis=1), np.argmax(preds[:, :3], axis=1))).astype(int)
+    blds_results = (np.equal(np.argmax(blds, axis=1), np.argmax(preds[:, :3], axis=1))).astype(int)
     acc_bld = blds_results.mean()
-    flrs_results = (np.equal(np.argmax(test_labels[:, 3:8], axis=1), np.argmax(preds[:, 3:8], axis=1))).astype(int)
+    # flrs_results = (np.equal(np.argmax(test_labels[:, 3:8], axis=1), np.argmax(preds[:, 3:8], axis=1))).astype(int)
+    flrs_results = (np.equal(np.argmax(flrs, axis=1), np.argmax(preds[:, 3:8], axis=1))).astype(int)
     acc_flr = flrs_results.mean()
     acc_bf = (blds_results*flrs_results).mean()
     # rfps_results = (np.equal(np.argmax(test_labels[:, 8:118], axis=1), np.argmax(preds[:, 8:118], axis=1))).astype(int)
@@ -293,8 +307,8 @@ if __name__ == "__main__":
     rfps = (preds[mask])[:, 8:118]
 
     n_success = len(blds)       # number of correct building and floor location
-    blds = np.greater_equal(blds, np.tile(np.amax(blds, axis=1).reshape(n_success, 1), (1, 3))).astype(int) # set maximum column to 1 and others to 0 (row-wise)
-    flrs = np.greater_equal(flrs, np.tile(np.amax(flrs, axis=1).reshape(n_success, 1), (1, 5))).astype(int) # ditto
+    # blds = np.greater_equal(blds, np.tile(np.amax(blds, axis=1).reshape(n_success, 1), (1, 3))).astype(int) # set maximum column to 1 and others to 0 (row-wise)
+    # flrs = np.greater_equal(flrs, np.tile(np.amax(flrs, axis=1).reshape(n_success, 1), (1, 5))).astype(int) # ditto
 
     n_loc_failure = 0
     sum_pos_err = 0.0
@@ -311,16 +325,22 @@ if __name__ == "__main__":
             rows = np.where((train_labels == np.concatenate((blds[i], flrs[i], rfp))).all(axis=1)) # tuple of row indexes
             if rows[0].size > 0:
                 if rfps[i][j] >= threshold[i]:
-                    xs.append(train_df.iloc[rows[0][0], 520])  # LONGITUDE
-                    ys.append(train_df.iloc[rows[0][0], 521])  # LATITUDE
+                    xs.append(train_df.ix[rows[0][0], 'LONGITUDE'])
+                    ys.append(train_df.ix[rows[0][0], 'LATITUDE'])
                     ws.append(rfps[i][j])
         if len(xs) > 0:
             sum_pos_err += math.sqrt((np.mean(xs)-x_test_utm[i])**2 + (np.mean(ys)-y_test_utm[i])**2)
             sum_pos_err_weighted += math.sqrt((np.average(xs, weights=ws)-x_test_utm[i])**2 + (np.average(ys, weights=ws)-y_test_utm[i])**2)
         else:
             n_loc_failure += 1
-    mean_pos_err = sum_pos_err / (n_success - n_loc_failure)
-    mean_pos_err_weighted = sum_pos_err_weighted / (n_success - n_loc_failure)
+            key = str(np.argmax(blds[i])) + '-' + str(np.argmax(flrs[i]))
+            pos_err += math.sqrt((x_avg[key]-x_test_utm[i])**2 + (y_avg[key]-y_test_utm[i])**2)
+            sum_pos_err += pos_err
+            sum_pos_err_weighted += pos_err
+    # mean_pos_err = sum_pos_err / (n_success - n_loc_failure)
+    mean_pos_err = sum_pos_err / n_success
+    # mean_pos_err_weighted = sum_pos_err_weighted / (n_success - n_loc_failure)
+    mean_pos_err_weighted = sum_pos_err_weighted / n_success
     loc_failure = n_loc_failure / n_success # rate of location estimation failure given that building and floor are correctly located
 
     ### print out final results
