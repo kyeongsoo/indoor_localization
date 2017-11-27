@@ -325,8 +325,8 @@ if __name__ == "__main__":
             rows = np.where((train_labels == np.concatenate((blds[i], flrs[i], rfp))).all(axis=1)) # tuple of row indexes
             if rows[0].size > 0:
                 if rfps[i][j] >= threshold[i]:
-                    xs.append(train_df.ix[rows[0][0], 'LONGITUDE'])
-                    ys.append(train_df.ix[rows[0][0], 'LATITUDE'])
+                    xs.append(train_df.loc[train_df.index[rows[0][0]], 'LONGITUDE'])
+                    ys.append(train_df.loc[train_df.index[rows[0][0]], 'LATITUDE'])
                     ws.append(rfps[i][j])
         if len(xs) > 0:
             sum_pos_err += math.sqrt((np.mean(xs)-x_test_utm[i])**2 + (np.mean(ys)-y_test_utm[i])**2)
