@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 ##
 # @file     scalable_indoor_localization.py
@@ -247,8 +247,8 @@ if __name__ == "__main__":
         # for layer in model.layers[:]:
         #     layer.trainable = False
         
-        # save the model for later use
-        model.save(path_sae_model)
+        # # save the model for later use
+        # model.save(path_sae_model)
 
     ### build and train a complete model with the trained SAE encoder and a new classifier
     print("\nPart 2: buidling a complete model ...")
@@ -334,7 +334,7 @@ if __name__ == "__main__":
         else:
             n_loc_failure += 1
             key = str(np.argmax(blds[i])) + '-' + str(np.argmax(flrs[i]))
-            pos_err += math.sqrt((x_avg[key]-x_test_utm[i])**2 + (y_avg[key]-y_test_utm[i])**2)
+            pos_err = math.sqrt((x_avg[key]-x_test_utm[i])**2 + (y_avg[key]-y_test_utm[i])**2)
             sum_pos_err += pos_err
             sum_pos_err_weighted += pos_err
     # mean_pos_err = sum_pos_err / (n_success - n_loc_failure)
