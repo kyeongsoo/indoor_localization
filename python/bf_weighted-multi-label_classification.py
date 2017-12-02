@@ -47,8 +47,8 @@ SAE_LOSS = 'mse'
 CLASSIFIER_ACTIVATION = 'relu'
 CLASSIFIER_BIAS = False
 CLASSIFIER_OPTIMIZER = 'adam'
-# CLASSIFIER_LOSS = 'weighted_binary_crossentropy' # custom loss function
-CLASSIFIER_LOSS = 'binary_crossentropy'
+CLASSIFIER_LOSS = 'weighted_binary_crossentropy' # custom loss function
+# CLASSIFIER_LOSS = 'binary_crossentropy'
 #------------------------------------------------------------------------
 # input files
 #------------------------------------------------------------------------
@@ -243,28 +243,24 @@ if __name__ == "__main__":
     #         def weighted_binary_crossentropy(self, y_true, y_pred): # TODO: to be updated for binary crossentropy function
     #             return K.mean(K.binary_crossentropy(y_true, y_pred) * self.weights)
 
-    # def weighted_binary_crossentropy(y_true, y_pred, weights): # TODO: to be updated for binary crossentropy function
-    #     return K.mean(K.binary_crossentropy(y_true, y_pred) * weights)
+    def weighted_binary_crossentropy(y_true, y_pred, weights): # TODO: to be updated for binary crossentropy function
+        return K.mean(K.binary_crossentropy(y_true, y_pred) * weights)
     
-    # weights = tf.constant(
-    #     np.array([
-    #         building_weight,
-    #         building_weight,
-    #         building_weight,
-    #         floor_weight,
-    #         floor_weight,
-    #         floor_weight,
-    #         floor_weight,
-    #         floor_weight
-    #         ], dtype="float32")
-    #     )
-    # ncce = functools.partial(weighted_binary_crossentropy, weights=weights)
-    # ncce.__name__ = CLASSIFIER_LOSS
+    weights = tf.constant(
+        np.array([
+            building_weight,
+            building_weight,
+            building_weight,
+            floor_weight,
+            floor_weight,
+            floor_weight,
+            floor_weight,
+            floor_weight
+            ], dtype="float32")
+        )
+    ncce = functools.partial(weighted_binary_crossentropy, weights=weights)
+    ncce.__name__ = CLASSIFIER_LOSS
     # weighted_binary_crossentropy = WeightedBinaryCrossEntropy(weights)
-    loss_weights = [
-        building_weight, building_weight, building_weight,
-        floor_weight, floor_weight, floor_weight, floor_weight, floor_weight
-    ]
     
     # append a classifier to the model
     model.add(Dropout(dropout))
@@ -272,8 +268,7 @@ if __name__ == "__main__":
         model.add(Dense(units, activation=CLASSIFIER_ACTIVATION, use_bias=CLASSIFIER_BIAS))
         model.add(Dropout(dropout))
     model.add(Dense(OUTPUT_DIM, activation='sigmoid', use_bias=CLASSIFIER_BIAS)) # 'sigmoid' for multi-label classification
-    # model.compile(optimizer=CLASSIFIER_OPTIMIZER, loss=ncce, metrics=['accuracy'])
-    model.compile(optimizer=CLASSIFIER_OPTIMIZER, loss=CLASSIFIER_LOSS, loss_weights=loss_weights, metrics=['accuracy'])
+    model.compile(optimizer=CLASSIFIER_OPTIMIZER, loss=ncce, metrics=['accuracy'])
 
     # train the model
     startTime = timer()
