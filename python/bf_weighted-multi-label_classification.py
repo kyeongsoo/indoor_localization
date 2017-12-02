@@ -273,7 +273,7 @@ if __name__ == "__main__":
         model.add(Dropout(dropout))
     model.add(Dense(OUTPUT_DIM, activation='sigmoid', use_bias=CLASSIFIER_BIAS)) # 'sigmoid' for multi-label classification
     # model.compile(optimizer=CLASSIFIER_OPTIMIZER, loss=ncce, metrics=['accuracy'])
-model.compile(optimizer=CLASSIFIER_OPTIMIZER, loss=CLASSIFIER_LOSS, loss_weights=loss_weights, metrics=['accuracy'])
+    model.compile(optimizer=CLASSIFIER_OPTIMIZER, loss=CLASSIFIER_LOSS, loss_weights=loss_weights, metrics=['accuracy'])
 
     # train the model
     startTime = timer()
