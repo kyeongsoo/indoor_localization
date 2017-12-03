@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##
-# @file     building_classification.py
+# @file     building_classification_deep_learning.py
 # @author   Kyeong Soo (Joseph) Kim <kyeongsoo.kim@gmail.com>
 # @date     2017-08-20
 #
-# @brief    Build and evaluate a heuristic buidling classification system using
-#           Wi-Fi fingerprinting
+# @brief    Build and evaluate a deep-learning-based buidling
+#           classification system using Wi-Fi fingerprinting
 #
 # @remarks  This work is based on the <a href="https://keras.io/">Keras</a>-based
 #           implementation of the system described in "<a
@@ -29,9 +29,27 @@ from timeit import default_timer as timer
 #------------------------------------------------------------------------
 # general
 #------------------------------------------------------------------------
+TRAINING_RATIO = 0.9            # ratio of training data to overall data
 INPUT_DIM = 520
 OUTPUT_DIM = 3                  # number of buildings
 VERBOSE = 1                     # 0 for turning off logging
+#------------------------------------------------------------------------
+# stacked auto encoder (sae)
+#------------------------------------------------------------------------
+# SAE_ACTIVATION = 'tanh'
+SAE_ACTIVATION = 'relu'
+SAE_BIAS = False
+SAE_OPTIMIZER = 'adam'
+SAE_LOSS = 'mse'
+#------------------------------------------------------------------------
+# classifier
+#------------------------------------------------------------------------
+# CLASSIFIER_ACTIVATION = 'relu'
+CLASSIFIER_ACTIVATION = 'tanh'
+CLASSIFIER_BIAS = False
+CLASSIFIER_OPTIMIZER = 'adam'
+# CLASSIFIER_OPTIMIZER = 'rmsprop'
+CLASSIFIER_LOSS = 'categorical_crossentropy'
 #------------------------------------------------------------------------
 # input files
 #------------------------------------------------------------------------
@@ -48,18 +66,85 @@ path_sae_model = path_base + '_sae_model.hdf5'
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "-G",
+        "--gpu_id",
+        help="ID of GPU device to run this script; default is 0; set it to a negative number for CPU (i.e., no GPU)",
+        default=0,
+        type=int)
+    parser.add_argument(
         "-R",
         "--random_seed",
         help="random seed",
         default=0,
         type=int)
+    parser.add_argument(
+        "-E",
+        "--epochs",
+        help="number of epochs; default is 20",
+        default=20,
+        type=int)
+    parser.add_argument(
+        "-B",
+        "--batch_size",
+        help="batch size; default is 10",
+        default=10,
+        type=int)
+    parser.add_argument(
+        "-S",
+        "--sae_hidden_layers",
+        help=
+        "comma-separated numbers of units in SAE hidden layers; default is '256,128,64,128,256'",
+        default='256,128,64,128,256',
+        type=str)
+    parser.add_argument(
+        "-C",
+        "--classifier_hidden_layers",
+        help=
+        "comma-separated numbers of units in classifier hidden layers; default '' (i.e., no hidden layer)",
+        default='',
+        type=str)
+    parser.add_argument(
+        "-D",
+        "--dropout",
+        help=
+        "dropout rate before and after classifier hidden layers; default 0.0",
+        default=0.0,
+        type=float)
+    parser.add_argument(
+        "-L",
+        "--learning_rate",
+        help="learning rate; default 0.001",
+        default=0.001,
+        type=float)
     args = parser.parse_args()
 
     # set variables using command-line arguments
+    gpu_id = args.gpu_id
     random_seed = args.random_seed
+    epochs = args.epochs
+    batch_size = args.batch_size
+    sae_hidden_layers = [int(i) for i in (args.sae_hidden_layers).split(',')]
+    if args.classifier_hidden_layers == '':
+        classifier_hidden_layers = ''
+    else:
+        classifier_hidden_layers = [int(i) for i in (args.classifier_hidden_layers).split(',')]
+    dropout = args.dropout
+    learning_rate = args.learning_rate
 
     ### initialize random seed generator
     np.random.seed(random_seed)
+    
+    #------------------------------------------------------------------------
+    # import keras and its backend (e.g., tensorflow)
+    #------------------------------------------------------------------------
+    if gpu_id >= 0:
+        # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
+    # os.environ['TF_CPP_MIN_LOG_LEVEL']='2'  # supress warning messages
+    import tensorflow as tf
+    from keras.layers import Dense, Dropout
+    from keras.models import Sequential, load_model
+    from keras import optimizers
     
     train_df = pd.read_csv(path_train,header = 0) # pass header=0 to be able to replace existing names 
     train_df = train_df[:19930]
@@ -72,17 +157,17 @@ if __name__ == "__main__":
     train_labels = np.asarray(train_df['BUILDINGID'].map(str))
     train_labels = np.asarray(pd.get_dummies(train_labels)) #labels is an array of shape 19937 x 3
 
-    # # convert train_val_split to an array of booleans: if elem < TRAINING_RATIO = true, else: false
-    # train_val_split = np.random.rand(len(train_AP_features))
-    # train_val_split = train_val_split < TRAINING_RATIO
+    # convert train_val_split to an array of booleans: if elem < TRAINING_RATIO = true, else: false
+    train_val_split = np.random.rand(len(train_AP_features))
+    train_val_split = train_val_split < TRAINING_RATIO
 
-    # # We aren't given a formal testing set, so we will treat the given validation
-    # # set as the testing set: We will then split our given training set into
-    # # training + validation
-    # train_X = train_AP_features[train_val_split]
-    # train_Y = train_labels[train_val_split]
-    # val_X = train_AP_features[~train_val_split]
-    # val_Y = train_labels[~train_val_split]
+    # We aren't given a formal testing set, so we will treat the given validation
+    # set as the testing set: We will then split our given training set into
+    # training + validation
+    train_X = train_AP_features[train_val_split]
+    train_y = train_labels[train_val_split]
+    val_X = train_AP_features[~train_val_split]
+    val_y = train_labels[~train_val_split]
 
     # turn the given validation set into a testing set
     test_df = pd.read_csv(path_validation,header = 0)
@@ -102,7 +187,13 @@ if __name__ == "__main__":
         for units in sae_hidden_layers[1:]:
             model.add(Dense(units, activation=SAE_ACTIVATION, use_bias=SAE_BIAS))  
         model.add(Dense(INPUT_DIM, activation=SAE_ACTIVATION, use_bias=SAE_BIAS))
-        model.compile(optimizer=SAE_OPTIMIZER, loss=SAE_LOSS)
+        if SAE_OPTIMIZER == 'adam':
+            opt = optimizers.Adam(lr=learning_rate)
+        else:
+            print("The optimizer '%s' is not supported yet." % SAE_OPTIMIZER)
+            print("Now exiting ...")
+            sys.exit()
+        model.compile(optimizer=opt, loss=SAE_LOSS)
 
         # train the model
         model.fit(train_X, train_X, batch_size=batch_size, epochs=epochs, verbose=VERBOSE)
@@ -127,11 +218,17 @@ if __name__ == "__main__":
         model.add(Dense(units, activation=CLASSIFIER_ACTIVATION, use_bias=CLASSIFIER_BIAS))
         model.add(Dropout(dropout))
     model.add(Dense(OUTPUT_DIM, activation='softmax', use_bias=CLASSIFIER_BIAS))
-    model.compile(optimizer=CLASSIFIER_OPTIMIZER, loss=CLASSIFIER_LOSS, metrics=['accuracy'])
+    if CLASSIFIER_OPTIMIZER == 'adam':
+        opt = optimizers.Adam(lr=learning_rate)
+    else:
+        print("The optimizer '%s' is not supported yet." % CLASSIFIER_ACTIVATION)
+        print("Now exiting ...")
+        sys.exit()
+    model.compile(optimizer=opt, loss=CLASSIFIER_LOSS, metrics=['accuracy'])
 
     # train the model
     startTime = timer()
-    model.fit(train_X, train_Y, validation_data=(val_X, val_Y), batch_size=batch_size, epochs=epochs, verbose=VERBOSE)
+    model.fit(train_X, train_y, validation_data=(val_X, val_y), batch_size=batch_size, epochs=epochs, verbose=VERBOSE)
 
     # evaluate the model
     elapsedTime = timer() - startTime
@@ -147,6 +244,7 @@ if __name__ == "__main__":
     f.write("  - Ratio of training data to overall data: %.2f\n" % TRAINING_RATIO)
     f.write("  - Number of epochs: %d\n" % epochs)
     f.write("  - Batch size: %d\n" % batch_size)
+    f.write("  - Learning rate: %e\n" % learning_rate)
     f.write("  - SAE hidden layers: %d" % sae_hidden_layers[0])
     for units in sae_hidden_layers[1:]:
         f.write("-%d" % units)
