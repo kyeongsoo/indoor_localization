@@ -45,12 +45,11 @@ SAE_LOSS = 'mse'
 #------------------------------------------------------------------------
 # classifier
 #------------------------------------------------------------------------
-CLASSIFIER_ACTIVATION = 'relu'
-#CLASSIFIER_ACTIVATION = 'tanh'
+# CLASSIFIER_ACTIVATION = 'relu'
+CLASSIFIER_ACTIVATION = 'tanh'
 CLASSIFIER_BIAS = False
 CLASSIFIER_OPTIMIZER = 'adam'
-# CLASSIFIER_OPTIMIZER = 'rmsprop'
-CLASSIFIER_LOSS = 'binary_crossentropy'
+CLASSIFIER_LOSS = 'categorical_crossentropy'
 #------------------------------------------------------------------------
 # input files
 #------------------------------------------------------------------------
@@ -93,8 +92,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "-T",
         "--training_validation_test_ratio",
-        help="comma-separated ratio of training, validation, and test data to the overall data: default is '7,2,1'",
-        default='7,2,1',
+        help="comma-separated ratio of training, validation, and test data to the overall data: default is '6,2,2'",
+        default='6,2,2',
         type=str)
     parser.add_argument(
         "-S",
@@ -117,12 +116,6 @@ if __name__ == "__main__":
         "dropout rate before and after classifier hidden layers; default 0.0",
         default=0.0,
         type=float)
-    parser.add_argument(
-        "-N",
-        "--nearest_neighbours",
-        help="number of nearest locations; default is 1",
-        default=1,
-        type=int)
     args = parser.parse_args()
 
     # set variables using command-line arguments
@@ -138,7 +131,6 @@ if __name__ == "__main__":
     else:
         classifier_hidden_layers = [int(i) for i in (args.classifier_hidden_layers).split(',')]
     dropout = args.dropout
-    nearest_neighbours = args.nearest_neighbours
 
     ### initialize random seed generator
     np.random.seed(random_seed)
@@ -236,32 +228,21 @@ if __name__ == "__main__":
     elapsedTime = timer() - startTime
     print("Model trained in %e s." % elapsedTime)
     
-    # # turn the given validation set into a testing set
-    # test_df = pd.read_csv(path_validation, header=0)
-    # test_AP_features = scale(np.asarray(test_df.iloc[:,0:520]).astype(float), axis=1) # convert integer to float and scale jointly (axis=1)
-    # test_utm_x = np.asarray(test_df['LONGITUDE'])
-    # test_utm_y = np.asarray(test_df['LATITUDE'])
-    # blds = np.asarray(pd.get_dummies(test_df['BUILDINGID']))
-    # flrs = np.asarray(pd.get_dummies(test_df['FLOOR']))
-    # # spcs = np.asarray(pd.get_dummies(test_df['SPACEID']))
-    # # rpss = np.asarray(pd.get_dummies(test_df['RELATIVEPOSITION']))
-    # # test_labels = np.concatenate((blds, flrs, spcs, rpss), axis=1)
-    # test_labels = np.concatenate((blds, flrs), axis=1)
-
     ### evaluate the model
     print("\nPart 3: evaluating the model ...")
 
     # calculate the accuracy of building and floor estimation
-    preds = model.predict(test_AP_features, batch_size=batch_size)
-    n_preds = preds.shape[0]
-    blds_results = (np.equal(np.argmax(test_labels[:, :3], axis=1), np.argmax(preds[:, :3], axis=1))).astype(int)
-    acc_bld = blds_results.mean()
-    flrs_results = (np.equal(np.argmax(test_labels[:, 3:8], axis=1), np.argmax(preds[:, 3:8], axis=1))).astype(int)
-    acc_flr = flrs_results.mean()
-    acc_bf = (blds_results*flrs_results).mean()
-    rfps_results = (np.equal(np.argmax(test_labels[:, 8:118], axis=1), np.argmax(preds[:, 8:118], axis=1))).astype(int)
-    acc_rfp = rfps_results.mean()
-    acc = (blds_results*flrs_results*rfps_results).mean()
+    loss, acc = model.evaluate(test_AP_features, test_labels)
+    # preds = model.predict(test_AP_features, batch_size=batch_size)
+    # n_preds = preds.shape[0]
+    # blds_results = (np.equal(np.argmax(test_labels[:, :3], axis=1), np.argmax(preds[:, :3], axis=1))).astype(int)
+    # acc_bld = blds_results.mean()
+    # flrs_results = (np.equal(np.argmax(test_labels[:, 3:8], axis=1), np.argmax(preds[:, 3:8], axis=1))).astype(int)
+    # acc_flr = flrs_results.mean()
+    # acc_bf = (blds_results*flrs_results).mean()
+    # rfps_results = (np.equal(np.argmax(test_labels[:, 8:118], axis=1), np.argmax(preds[:, 8:118], axis=1))).astype(int)
+    # acc_rfp = rfps_results.mean()
+    # acc = (blds_results*flrs_results*rfps_results).mean()
 
     ### print out final results
     now = datetime.datetime.now()
@@ -297,10 +278,10 @@ if __name__ == "__main__":
     f.write("  - Classifier loss: %s\n" % CLASSIFIER_LOSS)
     f.write("  - Classifier dropout rate: %.2f\n" % dropout)
     f.write("* Performance\n")
-    # f.write("  - Loss = %e\n" % loss)
-    f.write("  - Accuracy (building): %e\n" % acc_bld)
-    f.write("  - Accuracy (floor): %e\n" % acc_flr)
-    f.write("  - Accuracy (building-floor): %e\n" % acc_bf)
-    f.write("  - Accuracy (location): %e\n" % acc_rfp)
+    f.write("  - Loss = %e\n" % loss)
+    # f.write("  - Accuracy (building): %e\n" % acc_bld)
+    # f.write("  - Accuracy (floor): %e\n" % acc_flr)
+    # f.write("  - Accuracy (building-floor): %e\n" % acc_bf)
+    # f.write("  - Accuracy (location): %e\n" % acc_rfp)
     f.write("  - Accuracy (overall): %e\n" % acc)
     f.close()
