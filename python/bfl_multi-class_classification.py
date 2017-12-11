@@ -37,18 +37,19 @@ VERBOSE = 1                     # 0 for turning off logging
 #------------------------------------------------------------------------
 # stacked auto encoder (sae)
 #------------------------------------------------------------------------
-# SAE_ACTIVATION = 'tanh'
-SAE_ACTIVATION = 'relu'
+SAE_ACTIVATION = 'tanh'
+# SAE_ACTIVATION = 'relu'
 SAE_BIAS = False
 SAE_OPTIMIZER = 'adam'
 SAE_LOSS = 'mse'
 #------------------------------------------------------------------------
 # classifier
 #------------------------------------------------------------------------
-# CLASSIFIER_ACTIVATION = 'relu'
-CLASSIFIER_ACTIVATION = 'tanh'
+CLASSIFIER_ACTIVATION = 'relu'
+# CLASSIFIER_ACTIVATION = 'tanh'
 CLASSIFIER_BIAS = False
-CLASSIFIER_OPTIMIZER = 'adam'
+# CLASSIFIER_OPTIMIZER = 'adam'
+CLASSIFIER_OPTIMIZER = 'adagrad'
 CLASSIFIER_LOSS = 'categorical_crossentropy'
 #------------------------------------------------------------------------
 # input files
@@ -92,8 +93,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "-T",
         "--training_validation_test_ratio",
-        help="comma-separated ratio of training, validation, and test data to the overall data: default is '6,2,2'",
-        default='6,2,2',
+        help="comma-separated ratio of training, validation, and test data to the overall data: default is '7,2,1'",
+        default='7,2,1',
         type=str)
     parser.add_argument(
         "-S",
@@ -106,15 +107,15 @@ if __name__ == "__main__":
         "-C",
         "--classifier_hidden_layers",
         help=
-        "comma-separated numbers of units in classifier hidden layers; default is '128,128'",
-        default='128,128',
+        "comma-separated numbers of units in classifier hidden layers; default is '128,256,512'",
+        default='128,256,512',
         type=str)
     parser.add_argument(
         "-D",
         "--dropout",
         help=
-        "dropout rate before and after classifier hidden layers; default 0.0",
-        default=0.0,
+        "dropout rate before and after classifier hidden layers; default 0.2",
+        default=0.2,
         type=float)
     args = parser.parse_args()
 
