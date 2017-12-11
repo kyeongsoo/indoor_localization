@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##
-# @file     building_classification.py
+# @file     building_classifier.py
 # @author   Kyeong Soo (Joseph) Kim <kyeongsoo.kim@gmail.com>
 # @date     2017-08-20
+#           2017-12-06 (file name change)
 #
-# @brief    Build and evaluate a deep-learning-based buidling
-#           classification system using Wi-Fi fingerprinting
+# @brief    Build a DNN-based building classifier for Wi-Fi fingerprinting
 #
 # @remarks  This work is based on the <a href="https://keras.io/">Keras</a>-based
 #           implementation of the system described in "<a
@@ -51,17 +51,8 @@ path_out = path_base + '_out'
 path_sae_model = path_base + '_sae_model.hdf5'
 
 
-def building_classifier(input_dim=520,
-                        output_dim=3,
-                        sae_activation='relu',
-                        sae_bias=False,
-                        sae_optimizer='adam',
-                        sae_loss='mse',
-                        classifier_activation='tanh',
-                        classifier_bias=False,
-                        classifier_optimizer='adam',
-                        classifier_loss='categorical_crossentropy'):
-    """Build a neural network model for build classification based on Wi-Fi fingerprinting.
+class building_classifier(Sequential):
+    """DNN-based building classifier for Wi-Fi fingerprinting.
 
     Keyword arguments:
     input_dim -- (optional) number of APs; default is 520 (for UJIIndoorLoc dataset)
@@ -75,61 +66,74 @@ def building_classifier(input_dim=520,
     classifier_optimizer -- (optional) ; default is 'adam',
     classifier_loss -- (optional) ; default is 'categorical_crossentropy'
     """
+    
+    def __init__(self,
+            input_dim=520,
+             output_dim=3,
+             sae_activation='relu',
+             sae_bias=False,
+             sae_optimizer='adam',
+             sae_loss='mse',
+             classifier_activation='tanh',
+             classifier_bias=False,
+             classifier_optimizer='adam',
+             classifier_loss='categorical_crossentropy'):
 
-    ### build stacked autoencoder (SAE) encoder model
-    model = Sequential()
-    model.add(
-        Dense(
-            sae_hidden_layers[0],
-            input_dim=INPUT_DIM,
-            activation=SAE_ACTIVATION,
-            use_bias=SAE_BIAS))
-    for units in sae_hidden_layers[1:]:
-        model.add(Dense(units, activation=SAE_ACTIVATION, use_bias=SAE_BIAS))
-    model.add(Dense(INPUT_DIM, activation=SAE_ACTIVATION, use_bias=SAE_BIAS))
-    if SAE_OPTIMIZER == 'adam':
-        opt = optimizers.Adam(lr=learning_rate)
-    else:
-        print("The optimizer '%s' is not supported yet." % SAE_OPTIMIZER)
-        print("Now exiting ...")
-        sys.exit()
-    model.compile(optimizer=opt, loss=SAE_LOSS)
-    model.fit(
-        train_X,
-        train_X,
-        batch_size=batch_size,
-        epochs=epochs,
-        verbose=VERBOSE)  # train the SAE model
-    num_to_remove = (len(sae_hidden_layers) + 1) // 2
-    for i in range(num_to_remove):
-        model.pop()  # remove the decoder part
-    # # set all layers (i.e., SAE encoder) to non-trainable (weights will not be updated)
-    # for layer in model.layers[:]:
-    #     layer.trainable = False
-    # # save the model for later use
-    # model.save(path_sae_model)
 
-    ### append a classifier to the SAE encoder
-    model.add(Dropout(dropout))
-    for units in classifier_hidden_layers:
+        ### build stacked autoencoder (SAE) encoder model
+        model = Sequential()
         model.add(
             Dense(
-                units,
-                activation=CLASSIFIER_ACTIVATION,
-                use_bias=CLASSIFIER_BIAS))
-        model.add(Dropout(dropout))
-    model.add(
-        Dense(OUTPUT_DIM, activation='softmax', use_bias=CLASSIFIER_BIAS))
-    if CLASSIFIER_OPTIMIZER == 'adam':
-        opt = optimizers.Adam(lr=learning_rate)
-    else:
-        print(
-            "The optimizer '%s' is not supported yet." % CLASSIFIER_ACTIVATION)
-        print("Now exiting ...")
-        sys.exit()
-    model.compile(optimizer=opt, loss=CLASSIFIER_LOSS, metrics=['accuracy'])
+                sae_hidden_layers[0],
+                input_dim=INPUT_DIM,
+                activation=SAE_ACTIVATION,
+                use_bias=SAE_BIAS))
+        for units in sae_hidden_layers[1:]:
+            model.add(Dense(units, activation=SAE_ACTIVATION, use_bias=SAE_BIAS))
+        model.add(Dense(INPUT_DIM, activation=SAE_ACTIVATION, use_bias=SAE_BIAS))
+        if SAE_OPTIMIZER == 'adam':
+            opt = optimizers.Adam(lr=learning_rate)
+        else:
+            print("The optimizer '%s' is not supported yet." % SAE_OPTIMIZER)
+            print("Now exiting ...")
+            sys.exit()
+        model.compile(optimizer=opt, loss=SAE_LOSS)
+        model.fit(
+            train_X,
+            train_X,
+            batch_size=batch_size,
+            epochs=epochs,
+            verbose=VERBOSE)  # train the SAE model
+        num_to_remove = (len(sae_hidden_layers) + 1) // 2
+        for i in range(num_to_remove):
+            model.pop()  # remove the decoder part
+        # # set all layers (i.e., SAE encoder) to non-trainable (weights will not be updated)
+        # for layer in model.layers[:]:
+        #     layer.trainable = False
+        # # save the model for later use
+        # model.save(path_sae_model)
 
-    return model
+        ### append a classifier to the SAE encoder
+        model.add(Dropout(dropout))
+        for units in classifier_hidden_layers:
+            model.add(
+                Dense(
+                    units,
+                    activation=CLASSIFIER_ACTIVATION,
+                    use_bias=CLASSIFIER_BIAS))
+        model.add(Dropout(dropout))
+        model.add(
+            Dense(OUTPUT_DIM, activation='softmax', use_bias=CLASSIFIER_BIAS))
+        if CLASSIFIER_OPTIMIZER == 'adam':
+            opt = optimizers.Adam(lr=learning_rate)
+        else:
+            print(
+                "The optimizer '%s' is not supported yet." % CLASSIFIER_ACTIVATION)
+            print("Now exiting ...")
+            sys.exit()
+        model.compile(optimizer=opt, loss=CLASSIFIER_LOSS, metrics=['accuracy'])
+
+        return model
 
 
 if __name__ == "__main__":
