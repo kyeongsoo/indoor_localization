@@ -21,6 +21,7 @@ import argparse
 import datetime
 import os
 import math
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import sys
@@ -37,8 +38,8 @@ VERBOSE = 1                     # 0 for turning off logging
 #------------------------------------------------------------------------
 # stacked auto encoder (sae)
 #------------------------------------------------------------------------
-# SAE_ACTIVATION = 'tanh'
-SAE_ACTIVATION = 'relu'
+SAE_ACTIVATION = 'tanh'
+# SAE_ACTIVATION = 'relu'
 SAE_BIAS = False
 SAE_OPTIMIZER = 'adam'
 SAE_LOSS = 'mse'
@@ -46,11 +47,11 @@ SAE_LOSS = 'mse'
 # classifier
 #------------------------------------------------------------------------
 CLASSIFIER_ACTIVATION = 'relu'
-#CLASSIFIER_ACTIVATION = 'tanh'
+# CLASSIFIER_ACTIVATION = 'tanh'
 CLASSIFIER_BIAS = False
-CLASSIFIER_OPTIMIZER = 'adam'
-# CLASSIFIER_OPTIMIZER = 'rmsprop'
-CLASSIFIER_LOSS = 'binary_crossentropy'
+# CLASSIFIER_OPTIMIZER = 'adam'
+CLASSIFIER_OPTIMIZER = 'adagrad'
+CLASSIFIER_LOSS = 'categorical_crossentropy'
 #------------------------------------------------------------------------
 # input files
 #------------------------------------------------------------------------
@@ -60,7 +61,6 @@ path_train = '../data/UJIIndoorLoc/trainingData2.csv'           # '-110' for the
 # output files
 #------------------------------------------------------------------------
 path_base = '../results/' + os.path.splitext(os.path.basename(__file__))[0]
-path_out =  path_base + '_out'
 path_sae_model = path_base + '_sae_model.hdf5'
 
 
@@ -107,22 +107,16 @@ if __name__ == "__main__":
         "-C",
         "--classifier_hidden_layers",
         help=
-        "comma-separated numbers of units in classifier hidden layers; default is '128,128'",
-        default='128,128',
+        "comma-separated numbers of units in classifier hidden layers; default is '128,256,512'",
+        default='128,256,512',
         type=str)
     parser.add_argument(
         "-D",
         "--dropout",
         help=
-        "dropout rate before and after classifier hidden layers; default 0.0",
-        default=0.0,
+        "dropout rate before and after classifier hidden layers; default 0.2",
+        default=0.2,
         type=float)
-    parser.add_argument(
-        "-N",
-        "--nearest_neighbours",
-        help="number of nearest locations; default is 1",
-        default=1,
-        type=int)
     args = parser.parse_args()
 
     # set variables using command-line arguments
@@ -138,7 +132,6 @@ if __name__ == "__main__":
     else:
         classifier_hidden_layers = [int(i) for i in (args.classifier_hidden_layers).split(',')]
     dropout = args.dropout
-    nearest_neighbours = args.nearest_neighbours
 
     ### initialize random seed generator
     np.random.seed(random_seed)
@@ -231,42 +224,19 @@ if __name__ == "__main__":
 
     # train the model
     startTime = timer()
-    model.fit(x_train, y_train, validation_data=(x_val, y_val), batch_size=batch_size, epochs=epochs, verbose=VERBOSE)
+    history = model.fit(x_train, y_train, validation_data=(x_val, y_val), batch_size=batch_size, epochs=epochs, verbose=VERBOSE)
 
     elapsedTime = timer() - startTime
     print("Model trained in %e s." % elapsedTime)
     
-    # # turn the given validation set into a testing set
-    # test_df = pd.read_csv(path_validation, header=0)
-    # test_AP_features = scale(np.asarray(test_df.iloc[:,0:520]).astype(float), axis=1) # convert integer to float and scale jointly (axis=1)
-    # test_utm_x = np.asarray(test_df['LONGITUDE'])
-    # test_utm_y = np.asarray(test_df['LATITUDE'])
-    # blds = np.asarray(pd.get_dummies(test_df['BUILDINGID']))
-    # flrs = np.asarray(pd.get_dummies(test_df['FLOOR']))
-    # # spcs = np.asarray(pd.get_dummies(test_df['SPACEID']))
-    # # rpss = np.asarray(pd.get_dummies(test_df['RELATIVEPOSITION']))
-    # # test_labels = np.concatenate((blds, flrs, spcs, rpss), axis=1)
-    # test_labels = np.concatenate((blds, flrs), axis=1)
-
     ### evaluate the model
     print("\nPart 3: evaluating the model ...")
-
-    # calculate the accuracy of building and floor estimation
-    preds = model.predict(test_AP_features, batch_size=batch_size)
-    n_preds = preds.shape[0]
-    blds_results = (np.equal(np.argmax(test_labels[:, :3], axis=1), np.argmax(preds[:, :3], axis=1))).astype(int)
-    acc_bld = blds_results.mean()
-    flrs_results = (np.equal(np.argmax(test_labels[:, 3:8], axis=1), np.argmax(preds[:, 3:8], axis=1))).astype(int)
-    acc_flr = flrs_results.mean()
-    acc_bf = (blds_results*flrs_results).mean()
-    rfps_results = (np.equal(np.argmax(test_labels[:, 8:118], axis=1), np.argmax(preds[:, 8:118], axis=1))).astype(int)
-    acc_rfp = rfps_results.mean()
-    acc = (blds_results*flrs_results*rfps_results).mean()
+    loss, acc = model.evaluate(test_AP_features, test_labels)
 
     ### print out final results
     now = datetime.datetime.now()
-    path_out += "_" + now.strftime("%Y%m%d-%H%M%S") + ".org"
-    f = open(path_out, 'w')
+    path_org = path_base + "_" + now.strftime("%Y%m%d-%H%M%S") + ".org"
+    f = open(path_org, 'w')
     f.write("#+STARTUP: showall\n")  # unfold everything when opening
     f.write("* System parameters\n")
     f.write("  - Numpy random number seed: %d\n" % random_seed)
@@ -297,10 +267,27 @@ if __name__ == "__main__":
     f.write("  - Classifier loss: %s\n" % CLASSIFIER_LOSS)
     f.write("  - Classifier dropout rate: %.2f\n" % dropout)
     f.write("* Performance\n")
-    # f.write("  - Loss = %e\n" % loss)
-    f.write("  - Accuracy (building): %e\n" % acc_bld)
-    f.write("  - Accuracy (floor): %e\n" % acc_flr)
-    f.write("  - Accuracy (building-floor): %e\n" % acc_bf)
-    f.write("  - Accuracy (location): %e\n" % acc_rfp)
+    f.write("  - Loss = %e\n" % loss)
     f.write("  - Accuracy (overall): %e\n" % acc)
     f.close()
+
+    ### plot training history
+    plt.figure(1)
+    plt.subplot(211)
+    plt.plot(history.history['acc'])
+    plt.plot(history.history['val_acc'])
+    plt.ylabel('accuracy')
+    plt.legend(['train', 'test'], loc='upper left')
+
+    plt.subplot(212)
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper right')
+    plt.tight_layout()
+
+    plt.show()
+    path_plt = path_base + "_" + now.strftime("%Y%m%d-%H%M%S") + ".pdf"
+    plt.savefig(path_plt, format='pdf')
+    plt.close('all')

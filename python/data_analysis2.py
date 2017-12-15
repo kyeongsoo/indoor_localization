@@ -13,7 +13,8 @@
 #           recognition with WiFi fingerprints using deep learning</a>".
 #
 
-import itertools
+
+#import itertools
 import numpy as np
 import pandas as pd
 
