@@ -13,11 +13,9 @@
 #           recognition with WiFi fingerprints using deep learning</a>".
 #
 
-
 import itertools
 import numpy as np
 import pandas as pd
-
 
 # train_df = (pd.read_csv('../data/UJIIndoorLoc/trainingData2.csv', header=0))[:19930]
 train_df = pd.read_csv('../data/UJIIndoorLoc/trainingData2.csv', header=0)
@@ -33,7 +31,9 @@ spcs = {}
 for bld in blds:
     for flr in flrs:
         key = str(bld) + '-' + str(flr)
-        spcs[key] = np.unique((train_df[(train_df['BUILDINGID']==bld) & (train_df['FLOOR']==flr)])[['SPACEID']])
+        spcs[key] = np.unique(
+            (train_df[(train_df['BUILDINGID'] == bld)
+                      & (train_df['FLOOR'] == flr)])[['SPACEID']])
         print("Number of spaces in (%s): %d" % (key, len(spcs[key])))
         print("Intersection of (0-0) and (%s)" % (key))
         print(np.intersect1d(spcs['0-0'], spcs[key]))
