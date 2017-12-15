@@ -21,6 +21,7 @@ import argparse
 import datetime
 import os
 import math
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import sys
@@ -60,7 +61,6 @@ path_train = '../data/UJIIndoorLoc/trainingData2.csv'           # '-110' for the
 # output files
 #------------------------------------------------------------------------
 path_base = '../results/' + os.path.splitext(os.path.basename(__file__))[0]
-path_out =  path_base + '_out'
 path_sae_model = path_base + '_sae_model.hdf5'
 
 
@@ -224,31 +224,19 @@ if __name__ == "__main__":
 
     # train the model
     startTime = timer()
-    model.fit(x_train, y_train, validation_data=(x_val, y_val), batch_size=batch_size, epochs=epochs, verbose=VERBOSE)
+    history = model.fit(x_train, y_train, validation_data=(x_val, y_val), batch_size=batch_size, epochs=epochs, verbose=VERBOSE)
 
     elapsedTime = timer() - startTime
     print("Model trained in %e s." % elapsedTime)
     
     ### evaluate the model
     print("\nPart 3: evaluating the model ...")
-
-    # calculate the accuracy of building and floor estimation
     loss, acc = model.evaluate(test_AP_features, test_labels)
-    # preds = model.predict(test_AP_features, batch_size=batch_size)
-    # n_preds = preds.shape[0]
-    # blds_results = (np.equal(np.argmax(test_labels[:, :3], axis=1), np.argmax(preds[:, :3], axis=1))).astype(int)
-    # acc_bld = blds_results.mean()
-    # flrs_results = (np.equal(np.argmax(test_labels[:, 3:8], axis=1), np.argmax(preds[:, 3:8], axis=1))).astype(int)
-    # acc_flr = flrs_results.mean()
-    # acc_bf = (blds_results*flrs_results).mean()
-    # rfps_results = (np.equal(np.argmax(test_labels[:, 8:118], axis=1), np.argmax(preds[:, 8:118], axis=1))).astype(int)
-    # acc_rfp = rfps_results.mean()
-    # acc = (blds_results*flrs_results*rfps_results).mean()
 
     ### print out final results
     now = datetime.datetime.now()
-    path_out += "_" + now.strftime("%Y%m%d-%H%M%S") + ".org"
-    f = open(path_out, 'w')
+    path_org = path_base + "_" + now.strftime("%Y%m%d-%H%M%S") + ".org"
+    f = open(path_org, 'w')
     f.write("#+STARTUP: showall\n")  # unfold everything when opening
     f.write("* System parameters\n")
     f.write("  - Numpy random number seed: %d\n" % random_seed)
@@ -280,9 +268,26 @@ if __name__ == "__main__":
     f.write("  - Classifier dropout rate: %.2f\n" % dropout)
     f.write("* Performance\n")
     f.write("  - Loss = %e\n" % loss)
-    # f.write("  - Accuracy (building): %e\n" % acc_bld)
-    # f.write("  - Accuracy (floor): %e\n" % acc_flr)
-    # f.write("  - Accuracy (building-floor): %e\n" % acc_bf)
-    # f.write("  - Accuracy (location): %e\n" % acc_rfp)
     f.write("  - Accuracy (overall): %e\n" % acc)
     f.close()
+
+    ### plot training history
+    plt.figure(1)
+    plt.subplot(211)
+    plt.plot(history.history['acc'])
+    plt.plot(history.history['val_acc'])
+    plt.ylabel('accuracy')
+    plt.legend(['train', 'test'], loc='upper left')
+
+    plt.subplot(212)
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper right')
+    plt.tight_layout()
+
+    plt.show()
+    path_plt = path_base + "_" + now.strftime("%Y%m%d-%H%M%S") + ".pdf"
+    plt.savefig(path_plt, format='pdf')
+    plt.close('all')
