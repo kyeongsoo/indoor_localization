@@ -13,6 +13,13 @@
 #           href="https://arxiv.org/abs/1611.02049v2">Low-effort place
 #           recognition with WiFi fingerprints using deep learning</a>".
 #
+#           The results are published in the following paper:
+#           - Kyeong Soo Kim, Ruihao Wang, Zhenghang Zhong, Zikun Tan, Haowei
+#             Song, Jaehoon Cha, and Sanghyuk Lee, "Large-scale location-aware
+#             services in access: Hierarchical building/floor classification and
+#             location estimation using Wi-Fi fingerprinting based on deep
+#             neural networks," Proc. FOAN 2017, Munich, Germany Nov. 7,
+#             2017. Available online: https://arxiv.org/abs/1710.00951
 
 
 ### import modules (except keras and its backend)
