@@ -14,6 +14,13 @@
 #           href="https://arxiv.org/abs/1611.02049v2">Low-effort place
 #           recognition with WiFi fingerprints using deep learning</a>".
 #
+#           The results are published in the following paper:
+#           - Kyeong Soo Kim, Sanghyuk Lee, and Kaizhu Huang "A scalable deep
+#             neural network architecture for multi-building and multi-floor
+#             indoor localization based on Wi-Fi fingerprinting," submitted to
+#             Big Data Analytics, Dec. 5, 2017. Available online:
+#             https://arxiv.org/abs/1712.01990
+#
 
 
 ### import modules (except keras and its backend)
