@@ -14,6 +14,9 @@
 #           href="https://arxiv.org/abs/1611.02049v2">Low-effort place
 #           recognition with WiFi fingerprints using deep learning</a>".
 #
+#           The results will be published in a paper submitted to the <a
+#           href="http://www.tandfonline.com/loi/ufio20">Fiber and Integrated
+#           Optics</a> journal.
 
 
 ### import modules (except keras and its backend)
