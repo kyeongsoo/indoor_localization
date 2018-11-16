@@ -15,11 +15,11 @@
 #           recognition with WiFi fingerprints using deep learning</a>".
 #
 #           The results are published in the following paper:
-#           - Kyeong Soo Kim, Sanghyuk Lee, and Kaizhu Huang "A scalable deep
-#             neural network architecture for multi-building and multi-floor
-#             indoor localization based on Wi-Fi fingerprinting," submitted to
-#             Big Data Analytics, Dec. 5, 2017. Available online:
-#             https://arxiv.org/abs/1712.01990
+#           Kyeong Soo Kim, Sanghyuk Lee, and Kaizhu Huang "A scalable deep
+#           neural network architecture for multi-building and multi-floor
+#           indoor localization based on Wi-Fi fingerprinting," Big Data
+#           Analytics, vol. 3, no. 4, pp. 1-17, Apr. 19, 2018. Available online:
+#           https://arxiv.org/abs/1712.01990
 #
 
 
@@ -98,7 +98,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-T",
         "--training_ratio",
-        help="ratio of training data to overall data: default is 0.90",
+        help="ratio of training data to overall data: default is 0.9",
         default=0.9,
         type=float)
     parser.add_argument(
