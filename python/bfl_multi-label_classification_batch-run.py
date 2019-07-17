@@ -14,10 +14,10 @@ default_options = " ".join([
 ])
 
 for bs in [10*x for x in range(1, 6)]:
-    for dr in [0.05*x for x in range(1, 7)]:
+    for dr in [x for x in range(5, 35, 5)]:
         var_options = " ".join([
             "--batch_size", str(bs),
-            "--dropout", str(dr)
+            "--dropout", "{0:.2f}".format(0.01*dr)  # to avoid errors from the use of binary fraction
         ])
         cmd = " ".join([main_script, default_options, var_options])
         print("Executing: " + cmd)

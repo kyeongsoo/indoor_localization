@@ -20,7 +20,7 @@ import datetime
 import os
 import math
 import matplotlib
-matplotlib.use('Agg')           # to directly plot to a file without opening a window
+matplotlib.use('Agg')           # directly plot to a file without opening a window
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -89,6 +89,7 @@ def simo_dnn(gpu_id, random_seed, epochs, batch_size, training_validation_test_r
     import tensorflow as tf
     from keras import backend as K
     from keras.layers import Dense, Dropout
+
     from keras.models import Sequential, load_model
 
     K.clear_session()           # to avoid clutter from old models / layers.
